@@ -1,0 +1,96 @@
+{
+  "pageCreatePresets": {
+    "incident-report": {
+      "flag": "incident-report",
+      "description": "Incident report preset",
+      "templateSource": {
+        "spaceKey": "~7120200863cc9d6e744b9fa878ba5be9f1717c",
+        "pathSegments": [
+          "OpenClaw Skills",
+          "Document Templates"
+        ],
+        "title": "Incident Report Template"
+      },
+      "destination": {
+        "spaceKey": "ECBP",
+        "pathSegments": [
+          "03. Operations & BAU",
+          "Incident & Problem Log",
+          "6 - Incident Management / Troubleshooting"
+        ]
+      }
+    },
+    "meeting-notes": {
+      "flag": "meeting-notes",
+      "description": "Meeting notes preset",
+      "templateSource": {
+        "spaceKey": "~7120200863cc9d6e744b9fa878ba5be9f1717c",
+        "pathSegments": [
+          "OpenClaw Skills",
+          "Document Templates"
+        ],
+        "title": "Meeting Notes Template"
+      }
+    },
+    "gap-analysis": {
+      "flag": "gap-analysis",
+      "description": "Gap analysis preset",
+      "templateSource": {
+        "spaceKey": "~7120200863cc9d6e744b9fa878ba5be9f1717c",
+        "pathSegments": [
+          "OpenClaw Skills",
+          "Document Templates"
+        ],
+        "title": "Gap Analysis Template"
+      }
+    },
+    "risk-register": {
+      "flag": "risk-register",
+      "description": "Risk register preset",
+      "templateSource": {
+        "spaceKey": "~7120200863cc9d6e744b9fa878ba5be9f1717c",
+        "pathSegments": [
+          "OpenClaw Skills",
+          "Document Templates"
+        ],
+        "title": "Risk Register Template"
+      }
+    },
+    "impact-analysis": {
+      "flag": "impact-analysis",
+      "description": "Impact analysis preset",
+      "templateSource": {
+        "spaceKey": "~7120200863cc9d6e744b9fa878ba5be9f1717c",
+        "pathSegments": [
+          "OpenClaw Skills",
+          "Document Templates"
+        ],
+        "title": "Impact Analysis Template"
+      }
+    },
+    "change-request-form": {
+      "flag": "change-request-form",
+      "description": "Change request preset",
+      "templateSource": {
+        "spaceKey": "~7120200863cc9d6e744b9fa878ba5be9f1717c",
+        "pathSegments": [
+          "OpenClaw Skills",
+          "Document Templates"
+        ],
+        "title": "Change Request Form Template"
+      }
+    },
+    "release-notes": {
+      "flag": "release-notes",
+      "description": "Release notes preset",
+      "templateSource": {
+        "spaceKey": "~7120200863cc9d6e744b9fa878ba5be9f1717c",
+        "pathSegments": [
+          "OpenClaw Skills",
+          "Document Templates"
+        ],
+        "title": "Release Notes Template"
+      }
+    }
+  }
+}
