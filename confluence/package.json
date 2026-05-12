@@ -1,0 +1,21 @@
+{
+  "name": "@mindlayer/confluence",
+  "version": "0.1.17",
+  "files": [
+    "scripts/bin/",
+    "scripts/src/",
+    "SKILL.md"
+  ],
+  "description": "Deterministic Confluence CLI for agents",
+  "license": "MIT",
+  "type": "commonjs",
+  "bin": {
+    "confluence-cli": "bin/conf-cli.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "markdown-it": "^14.0.0"
+  }
+}
