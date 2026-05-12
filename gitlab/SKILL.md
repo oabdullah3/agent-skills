@@ -85,6 +85,10 @@ Credential behavior:
 - if credentials are missing, try to infer a likely `--env-dir` from known project locations
 - if that fails, ask for the `--env-dir` path and remind them to populate the `.env` file with the required variables
 
+Dependency requirements:
+- Node >= 20.
+- No npm install step is required for runtime (no runtime dependencies listed).
+
 ## 6) Workflow Model (MR-First)
 
 Read operations (no approval required):

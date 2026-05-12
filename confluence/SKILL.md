@@ -51,6 +51,13 @@ Notes:
 - If that fails, ask the user for the `--env-dir` path and remind them to populate the `.env` file with the required variables.
 - Do not pass `--pipe-dir` by default. Use `--pipe-dir` only when automatic pipe resolution fails.
 
+### 3.1 Dependency bootstrap
+
+If `node_modules` is missing in `<SKILL_DIR>` or running `conf-cli.js` fails with a module-not-found error:
+- Install dependencies from `<SKILL_DIR>` with `npm install`.
+- Use Node >= 20 (per `package-lock.json`).
+- Re-run the original command after install completes.
+
 ## 4) Approval Contract
 
 Mutating commands:
