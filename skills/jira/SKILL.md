@@ -1,15 +1,15 @@
 ---
 name: jira-skill
 version: 1.0.0
-description: Deterministic Jira operations using jira-cli with explicit human approval gates for all create/edit mutations.
+description: Deterministic Jira operations using mindlayer-jira-cli with explicit human approval gates for all create/edit mutations.
 required_environment_variables: [JIRA_CLOUD_ID, JIRA_EMAIL, JIRA_API_TOKEN]
 optional_environmenta_variables: [JIRA_ENV_DIR, AGENT_NAME]
 ---
 
 # Jira CLI Manager Skill
 
-This skill is the canonical operational policy for Jira work through jira-cli.
-Use jira-cli only for supported operations.
+This skill is the canonical operational policy for Jira work through mindlayer-jira-cli.
+Use mindlayer-jira-cli only for supported operations.
 
 ## 1) Non-Negotiable Safety Rules
 
@@ -17,7 +17,7 @@ Never:
 - run create/edit mutations with --human-approval-obtained on first execution.
 - guess project IDs, issue type IDs, assignee IDs, transition IDs, field IDs, or issue keys.
 - expose secrets (especially JIRA_API_TOKEN).
-- use raw Jira REST calls when jira-cli supports the operation.
+- use raw Jira REST calls when mindlayer-jira-cli supports the operation.
 - perform delete operations through this workflow.
 
 Always:
@@ -28,29 +28,21 @@ Always:
 
 ## 2) Startup Protocol
 
-1. Resolve `SKILL_DIR` by locating this `SKILL.md` and using its directory path.
-2. Assume the `scripts/` folder sits next to this `SKILL.md`.
-2. Set the CLI path once per session:
+1. Run post-install verification:
 
 ```bash
-JIRA_CLI="<SKILL_DIR>/scripts/bin/jira-cli.js"
+mindlayer-jira-cli --help
 ```
 
-3. Run post-install verification:
-
-```bash
-node "$JIRA_CLI" --help
-```
-
-4. If jira-cli is missing and user approves installation, run private-registry install flow.
-5. If verification fails, report exact error and stop for human direction.
+2. If mindlayer-jira-cli is missing, ask the user to install it and stop. Do not install it yourself.
+3. If verification fails, report exact error and stop for human direction.
 
 ## 3) Invocation and Environment
 
 Preferred command form:
 
 ```bash
-node "$JIRA_CLI" <command> --format json
+mindlayer-jira-cli <command> --format json
 ```
 
 Deterministic invocation contract:
@@ -64,12 +56,6 @@ Credential source precedence (runtime behavior):
 1. If process env has JIRA_CLOUD_ID, JIRA_EMAIL, JIRA_API_TOKEN => uses process env.
 2. Otherwise, --env-dir "<dir>" => reads <dir>/.env.
 
-Before running any command, the agent must ensure the environment is consistent with the skill's package.json:
-1. Verify that Node >= 20 is installed via node -v. Ask user for permission and install/upgrade it if necessary.
-2. Use npm list -g to see if it contains the dependencies listed in <SKILL_DIR>/package.json (currently: none).
-3. If missing or outdated, run `npm install -g`.
-4. Only then proceed with the command.
-
 Credential error recovery playbook:
 1. If error mentions missing JIRA_CLOUD_ID/JIRA_EMAIL/JIRA_API_TOKEN:
 - ask for `--env-dir` and ensure <dir>/.env exists before rerun.
@@ -79,8 +65,8 @@ Credential error recovery playbook:
 Canonical invocation templates:
 
 ```bash
-node "$JIRA_CLI" issue search --jql "project = ABC ORDER BY updated DESC" --format json
-node "$JIRA_CLI" issue search --jql "project = ABC ORDER BY updated DESC" --env-dir "." --format json
+mindlayer-jira-cli issue search --jql "project = ABC ORDER BY updated DESC" --format json
+mindlayer-jira-cli issue search --jql "project = ABC ORDER BY updated DESC" --env-dir "." --format json
 ```
 
 ## 4) Approval Contract
@@ -106,14 +92,14 @@ Approval matrix:
 ## 5) Command Surface (Canonical)
 
 Canonical command families:
-- node "$JIRA_CLI" doctor credentials [--format json]
-- node "$JIRA_CLI" project search --query <text> [--operation-mode <search|resolve>] [--with-components] [--max-results <n>] [--start-at <n>] [--explain] [--format json]
-- node "$JIRA_CLI" issue search --jql <query> [--operation-mode <search|resolve>] [--start-at <n>] [--max-results <n>] [--explain] [--format json]
-- node "$JIRA_CLI" issue search --issue-key <key> [--operation-mode <search|resolve>] [--with-comments [max,start]] [--with-transitions [max,start]] [--with-assignable [max,start]] [--with-worklogs [max,start]] [--with-attachments [max,start]] [--explain] [--format json]
-- node "$JIRA_CLI" issue create --summary <text> (choose exactly one: --project-id | --project-key | --project-query) (choose exactly one: --issue-type-id | --issue-type-name) [--incident-report|--bug-triage|--change-request|--release-blocker] [--operation-mode <prepare|show-changes|finalize|resolve>] [--preview-ref] [--idempotency-key] [--skip-permission-preflight] [--priority-id] [--component-ids] [--parent-key|--parent-id] [--environment-value] [--environment-field-id] [--story-points] [--story-points-field-id] [--original-estimate] [action flags] [--format json]
-- node "$JIRA_CLI" issue edit add --issue <key> [--operation-mode <prepare|show-changes|finalize|resolve>] [--preview-ref] [--idempotency-key] [--skip-permission-preflight] [--comment-body] [--worklog-time-spent] [--attach-file] [--labels] [--link-type/--link-issue] [--get-details] [--format json]
-- node "$JIRA_CLI" issue edit replace --issue <key> [--operation-mode <prepare|show-changes|finalize|resolve>] [--preview-ref] [--idempotency-key] [--skip-permission-preflight] [--summary] [--description] [--start-date] [--due-date] [--priority-id] [--component-ids] [--parent-key|--parent-id] [--environment-value] [--environment-field-id] [--story-points] [--story-points-field-id] [--original-estimate] [--acceptance-value] [--patch-mode <replace|append|prepend>] [--patch-field <description|acceptance|both|all>] [--transition-id] [--assignee-id] [--labels-add] [--labels-remove] [--get-details] [--format json]
-- node "$JIRA_CLI" me [--assigned] [--reported] [--watched] [--recent] [--start-at <n>] [--max-results <n>] [--with-comments [max,start]] [--with-transitions [max,start]] [--with-assignable [max,start]] [--with-worklogs [max,start]] [--with-attachments [max,start]] [--explain] [--format json]
+- mindlayer-jira-cli doctor credentials [--format json]
+- mindlayer-jira-cli project search --query <text> [--operation-mode <search|resolve>] [--with-components] [--max-results <n>] [--start-at <n>] [--explain] [--format json]
+- mindlayer-jira-cli issue search --jql <query> [--operation-mode <search|resolve>] [--start-at <n>] [--max-results <n>] [--explain] [--format json]
+- mindlayer-jira-cli issue search --issue-key <key> [--operation-mode <search|resolve>] [--with-comments [max,start]] [--with-transitions [max,start]] [--with-assignable [max,start]] [--with-worklogs [max,start]] [--with-attachments [max,start]] [--explain] [--format json]
+- mindlayer-jira-cli issue create --summary <text> (choose exactly one: --project-id | --project-key | --project-query) (choose exactly one: --issue-type-id | --issue-type-name) [--incident-report|--bug-triage|--change-request|--release-blocker] [--operation-mode <prepare|show-changes|finalize|resolve>] [--preview-ref] [--idempotency-key] [--skip-permission-preflight] [--priority-id] [--component-ids] [--parent-key|--parent-id] [--environment-value] [--environment-field-id] [--story-points] [--story-points-field-id] [--original-estimate] [action flags] [--format json]
+- mindlayer-jira-cli issue edit add --issue <key> [--operation-mode <prepare|show-changes|finalize|resolve>] [--preview-ref] [--idempotency-key] [--skip-permission-preflight] [--comment-body] [--worklog-time-spent] [--attach-file] [--labels] [--link-type/--link-issue] [--get-details] [--format json]
+- mindlayer-jira-cli issue edit replace --issue <key> [--operation-mode <prepare|show-changes|finalize|resolve>] [--preview-ref] [--idempotency-key] [--skip-permission-preflight] [--summary] [--description] [--start-date] [--due-date] [--priority-id] [--component-ids] [--parent-key|--parent-id] [--environment-value] [--environment-field-id] [--story-points] [--story-points-field-id] [--original-estimate] [--acceptance-value] [--patch-mode <replace|append|prepend>] [--patch-field <description|acceptance|both|all>] [--transition-id] [--assignee-id] [--labels-add] [--labels-remove] [--get-details] [--format json]
+- mindlayer-jira-cli me [--assigned] [--reported] [--watched] [--recent] [--start-at <n>] [--max-results <n>] [--with-comments [max,start]] [--with-transitions [max,start]] [--with-assignable [max,start]] [--with-worklogs [max,start]] [--with-attachments [max,start]] [--explain] [--format json]
 
 Legacy route policy (non-canonical):
 - Do not invoke these legacy route families: issue-comment-add, issue-worklog-add, issue-details, issue-dates, issue-acceptance, issue-type-list, or issue-edit-without-mode.
@@ -163,7 +149,7 @@ Resolve/ambiguity contract:
 - Never auto-select from ambiguous resolution results.
 
 Credential diagnostics workflow:
-- Use `node "$JIRA_CLI" doctor credentials --format json` for non-mutating credential troubleshooting.
+- Use `mindlayer-jira-cli doctor credentials --format json` for non-mutating credential troubleshooting.
 - Do not print or infer raw token/email/cloud-id values from any source.
 - Use returned selectedSource, attempts, and missingKeys to decide the next remediation step.
 
@@ -172,49 +158,49 @@ Credential diagnostics workflow:
 Project discovery:
 
 ```bash
-node "$JIRA_CLI" project search --query "<project text>" --with-components --max-results 20 --explain --format json
+mindlayer-jira-cli project search --query "<project text>" --with-components --max-results 20 --explain --format json
 ```
 
 Issue discovery:
 
 ```bash
-node "$JIRA_CLI" issue search --jql "project = ABC AND statusCategory != Done" --start-at 0 --max-results 20 --explain --format json
-node "$JIRA_CLI" issue search --issue-key ABC-123 --with-comments [20,0] --with-transitions [20,0] --with-assignable [20,0] --with-worklogs [20,0] --with-attachments [20,0] --explain --format json
+mindlayer-jira-cli issue search --jql "project = ABC AND statusCategory != Done" --start-at 0 --max-results 20 --explain --format json
+mindlayer-jira-cli issue search --issue-key ABC-123 --with-comments [20,0] --with-transitions [20,0] --with-assignable [20,0] --with-worklogs [20,0] --with-attachments [20,0] --explain --format json
 ```
 
 Profile discovery with pagination parity:
 
 ```bash
-node "$JIRA_CLI" me --assigned --recent --start-at 0 --max-results 10 --with-comments [5,0] --with-worklogs [5,0] --explain --format json
+mindlayer-jira-cli me --assigned --recent --start-at 0 --max-results 10 --with-comments [5,0] --with-worklogs [5,0] --explain --format json
 ```
 
 Create preview and execute (multi-action example):
 
 ```bash
-node "$JIRA_CLI" issue create --operation-mode prepare --summary "Investigate login regression" --project-id 10024 --issue-type-name "Task" --comment-body "triage started" --labels "urgent,triage" --worklog-time-spent "15m" --format json
-node "$JIRA_CLI" issue create --operation-mode show-changes --summary "Investigate login regression" --project-id 10024 --issue-type-name "Task" --comment-body "triage started" --labels "urgent,triage" --worklog-time-spent "15m" --format json
-node "$JIRA_CLI" issue create --operation-mode finalize --preview-ref "<ref>" --idempotency-key "create-<key>" --summary "Investigate login regression" --project-id 10024 --issue-type-name "Task" --comment-body "triage started" --labels "urgent,triage" --worklog-time-spent "15m" --format json --human-approval-obtained
+mindlayer-jira-cli issue create --operation-mode prepare --summary "Investigate login regression" --project-id 10024 --issue-type-name "Task" --comment-body "triage started" --labels "urgent,triage" --worklog-time-spent "15m" --format json
+mindlayer-jira-cli issue create --operation-mode show-changes --summary "Investigate login regression" --project-id 10024 --issue-type-name "Task" --comment-body "triage started" --labels "urgent,triage" --worklog-time-spent "15m" --format json
+mindlayer-jira-cli issue create --operation-mode finalize --preview-ref "<ref>" --idempotency-key "create-<key>" --summary "Investigate login regression" --project-id 10024 --issue-type-name "Task" --comment-body "triage started" --labels "urgent,triage" --worklog-time-spent "15m" --format json --human-approval-obtained
 ```
 
 Edit add preview and execute:
 
 ```bash
-node "$JIRA_CLI" issue edit add --operation-mode show-changes --issue ABC-123 --comment-body "Progress update" --labels "next-step" --format json
-node "$JIRA_CLI" issue edit add --operation-mode finalize --preview-ref "<ref>" --idempotency-key "add-<key>" --issue ABC-123 --comment-body "Progress update" --labels "next-step" --format json --human-approval-obtained
+mindlayer-jira-cli issue edit add --operation-mode show-changes --issue ABC-123 --comment-body "Progress update" --labels "next-step" --format json
+mindlayer-jira-cli issue edit add --operation-mode finalize --preview-ref "<ref>" --idempotency-key "add-<key>" --issue ABC-123 --comment-body "Progress update" --labels "next-step" --format json --human-approval-obtained
 ```
 
 Edit replace preview and execute:
 
 ```bash
-node "$JIRA_CLI" issue edit replace --operation-mode show-changes --issue ABC-123 --summary "Clarified acceptance" --description "Full replacement text" --labels-add "validated" --labels-remove "stale" --format json
-node "$JIRA_CLI" issue edit replace --operation-mode finalize --preview-ref "<ref>" --idempotency-key "replace-<key>" --issue ABC-123 --summary "Clarified acceptance" --description "Full replacement text" --labels-add "validated" --labels-remove "stale" --format json --human-approval-obtained
+mindlayer-jira-cli issue edit replace --operation-mode show-changes --issue ABC-123 --summary "Clarified acceptance" --description "Full replacement text" --labels-add "validated" --labels-remove "stale" --format json
+mindlayer-jira-cli issue edit replace --operation-mode finalize --preview-ref "<ref>" --idempotency-key "replace-<key>" --issue ABC-123 --summary "Clarified acceptance" --description "Full replacement text" --labels-add "validated" --labels-remove "stale" --format json --human-approval-obtained
 ```
 
 Giant reference templates (all major flags, with mutually-exclusive groups shown inline):
 
 ```bash
 # Giant issue search template (choose exactly one primary selector)
-node "$JIRA_CLI" issue search \
+mindlayer-jira-cli issue search \
 	--operation-mode search \
 	--jql "project = ABC ORDER BY updated DESC" \
 	# OR: --issue-key ABC-123 \
@@ -231,7 +217,7 @@ node "$JIRA_CLI" issue search \
 	--format json
 
 # Giant project search template
-node "$JIRA_CLI" project search \
+mindlayer-jira-cli project search \
 	--query "Example" \
 	--operation-mode search \
 	# OR: --operation-mode resolve \
@@ -244,7 +230,7 @@ node "$JIRA_CLI" project search \
 	--format json
 
 # Giant issue create template (mutually-exclusive groups called out)
-node "$JIRA_CLI" issue create \
+mindlayer-jira-cli issue create \
 	--operation-mode show-changes \
 	# OR: --operation-mode prepare | --operation-mode finalize | --operation-mode resolve \
 	--summary "Investigate login regression" \
@@ -287,7 +273,7 @@ node "$JIRA_CLI" issue create \
 	--format json
 
 # Giant issue edit add template
-node "$JIRA_CLI" issue edit add \
+mindlayer-jira-cli issue edit add \
 	--operation-mode show-changes \
 	# OR: --operation-mode prepare | --operation-mode finalize | --operation-mode resolve \
 	--issue ABC-123 \
@@ -309,7 +295,7 @@ node "$JIRA_CLI" issue edit add \
 	--format json
 
 # Giant issue edit replace template
-node "$JIRA_CLI" issue edit replace \
+mindlayer-jira-cli issue edit replace \
 	--operation-mode show-changes \
 	# OR: --operation-mode prepare | --operation-mode finalize | --operation-mode resolve \
 	--issue ABC-123 \
@@ -362,8 +348,8 @@ node "$JIRA_CLI" issue edit replace \
 Verification examples:
 
 ```bash
-node "$JIRA_CLI" issue search --issue-key ABC-123 --format json
-node "$JIRA_CLI" issue search --jql "key = ABC-123" --format json
+mindlayer-jira-cli issue search --issue-key ABC-123 --format json
+mindlayer-jira-cli issue search --jql "key = ABC-123" --format json
 ```
 
 Verify:
@@ -379,7 +365,7 @@ This SKILL does not currently support this feature. If you would like to see it 
 
 Legacy command response:
 
-Command '<legacy command>' is legacy and not supported. Use the canonical replacement command suggested by jira-cli.
+Command '<legacy command>' is legacy and not supported. Use the canonical replacement command suggested by mindlayer-jira-cli.
 
 Delete request response:
 
