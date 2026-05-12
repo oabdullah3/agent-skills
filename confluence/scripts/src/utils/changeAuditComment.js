@@ -1,17 +1,24 @@
+function resolveAgentName() {
+    const raw = String(process.env.AGENT_NAME || "AGENT").trim();
+    if (!raw) return "AGENT";
+    return raw;
+}
+
 function formatAuditComment({ operation, changeTypes, pageId, pageTitle, actorEmail, timestampIso }) {
     const safeChangeTypes = Array.isArray(changeTypes) && changeTypes.length > 0
         ? changeTypes.join(", ")
         : "unspecified";
+    const agentName = resolveAgentName();
 
     return [
-        "[OpenClaw Change Audit]",
+        `[${agentName} Change Audit]`,
         `Operation: ${operation || "unknown"}`,
         `Change types: ${safeChangeTypes}`,
         `Timestamp (UTC): ${timestampIso}`,
         `Actor email: ${actorEmail || "unknown"}`,
         `Page ID: ${String(pageId || "unknown")}`,
         `Page title: ${pageTitle || "unknown"}`,
-        "Source: OpenClaw agent via openclaw-confluence-cli",
+        `Source: ${agentName} agent via confluence-cli`,
     ].join("\n");
 }
 

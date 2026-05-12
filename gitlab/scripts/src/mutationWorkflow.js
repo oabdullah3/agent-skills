@@ -3,10 +3,10 @@ const fs = require("fs");
 const path = require("path");
 const { CliError } = require("./errors");
 
-const DEFAULT_TTL_SECONDS = 1800;
+const DEFAULT_TTL_SECONDS = 60;
 
 function previewStorePath(invocationCwd = process.cwd()) {
-  return path.join(invocationCwd, ".openclaw", "gitlab-preview-tokens.json");
+  return path.join(invocationCwd, ".agent", "gitlab-preview-tokens.json");
 }
 
 function stableStringify(value) {

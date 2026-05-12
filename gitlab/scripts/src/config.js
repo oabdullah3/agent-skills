@@ -1,9 +1,6 @@
 const fs = require("fs");
-const os = require("os");
 const path = require("path");
 const { CliError } = require("./errors");
-
-const SKILL_ENTRY = "gitlab-manager";
 const REQUIRED = ["GITLAB_USERNAME", "GITLAB_TOKEN"];
 
 function stripQuotes(value) {
@@ -36,18 +33,6 @@ function parseDotEnv(filePath) {
   return out;
 }
 
-function readJson(filePath) {
-  return JSON.parse(fs.readFileSync(filePath, "utf8"));
-}
-
-function getNested(root, pathParts) {
-  let cursor = root;
-  for (const part of pathParts) {
-    if (!cursor || typeof cursor !== "object" || !(part in cursor)) return undefined;
-    cursor = cursor[part];
-  }
-  return cursor;
-}
 
 function normalizeCredentials(source, sourceName) {
   const mapped = {
@@ -109,7 +94,7 @@ function materializeCaFile(caValue, invocationCwd) {
     });
   }
 
-  const certDir = path.join(invocationCwd, ".openclaw", "certs");
+  const certDir = path.join(invocationCwd, ".agent", "certs");
   const certPath = path.join(certDir, "gitlab-ca.pem");
   fs.mkdirSync(certDir, { recursive: true });
   fs.writeFileSync(certPath, pem.endsWith("\n") ? pem : `${pem}\n`, "utf8");
@@ -127,28 +112,6 @@ function resolveGitTlsEnv(credentials, invocationCwd = process.cwd()) {
   return {};
 }
 
-function loadFromOpenClawConfig(configPath) {
-  const parsed = readJson(configPath);
-  const envNode = getNested(parsed, ["skills", "entries", SKILL_ENTRY, "env"]);
-  if (!envNode) {
-    throw new CliError(
-      `Missing skills.entries.${SKILL_ENTRY}.env in ${configPath}.`,
-      2,
-      {
-        code: "MISSING_SKILL_ENV_NODE",
-        category: "credentials",
-        remediation: `Add skills.entries.${SKILL_ENTRY}.env with CREDENTIAL_1 and CREDENTIAL_2.`,
-      }
-    );
-  }
-
-  const normalized = normalizeCredentials(envNode, `openclaw-config:${configPath}`);
-  return {
-    ...normalized,
-    source: "openclaw-config",
-    configPath,
-  };
-}
 
 function inferCaInputType(value) {
   const raw = String(value || "").trim();
@@ -186,40 +149,14 @@ function loadFromEnvDir(envDir) {
   };
 }
 
-function defaultOpenClawConfigPath() {
-  return path.join(os.homedir(), ".openclaw", "openclaw.json");
-}
-
 function loadCredentials(flags = {}, invocationCwd = process.cwd()) {
-  const defaultConfigPath = defaultOpenClawConfigPath();
-  const openClawConfigOverride = process.env.OPENCLAW_CONFIG;
-
   const attempts = [];
-
-  try {
-    const configPathStep1 = defaultConfigPath;
-    const creds = loadFromOpenClawConfig(configPathStep1);
-    return creds;
-  } catch (err) {
-    attempts.push({ source: "openclaw-config-default", error: err.message });
-  }
 
   try {
     const creds = loadFromEnv();
     return creds;
   } catch (err) {
     attempts.push({ source: "env", error: err.message });
-  }
-
-  const cfgFlag = flags["config-path"] || openClawConfigOverride;
-  if (cfgFlag) {
-    try {
-      const configPathStep3 = path.resolve(cfgFlag);
-      const creds = loadFromOpenClawConfig(configPathStep3);
-      return creds;
-    } catch (err) {
-      attempts.push({ source: "openclaw-config-override", error: err.message });
-    }
   }
 
   const envDir = flags["env-dir"] || process.env.GITLAB_ENV_DIR;
@@ -235,55 +172,25 @@ function loadCredentials(flags = {}, invocationCwd = process.cwd()) {
   throw new CliError("Unable to resolve GitLab credentials from configured sources.", 2, {
     code: "CREDENTIAL_RESOLUTION_FAILED",
     category: "credentials",
-    remediation:
-      "Provide .openclaw/openclaw.json skills.entries.gitlab-manager.env CREDENTIAL_1/CREDENTIAL_2, set env vars, pass --config-path, or pass --env-dir.",
+    remediation: "Provide credentials via process env or pass --env-dir with a .env file.",
     attempts,
   });
 }
 
 function inspectCredentialSources(flags = {}, invocationCwd = process.cwd()) {
-  const defaultConfigPath = defaultOpenClawConfigPath();
-  const cfgFlag = flags["config-path"] || process.env.OPENCLAW_CONFIG;
   const envDir = flags["env-dir"] || process.env.GITLAB_ENV_DIR;
 
   const checks = [];
 
-  function readEnvNodeIfPresent(configPath) {
-    try {
-      if (!fs.existsSync(configPath)) return null;
-      const parsed = readJson(configPath);
-      return getNested(parsed, ["skills", "entries", SKILL_ENTRY, "env"]) || null;
-    } catch (_) {
-      return null;
-    }
-  }
-
   function hasCaInput(source = {}) {
     return Boolean(source.GITLAB_CA_BUNDLE || source.GITLAB_CA_BUNDLE_PATH || source.CREDENTIAL_3 || source.GITLAB_CA_CERT_PEM || source.GITLAB_CA_PEM);
   }
-
-  const defaultEnvNode = readEnvNodeIfPresent(defaultConfigPath);
-  checks.push({
-    source: "openclaw-config-default",
-    path: defaultConfigPath,
-    exists: fs.existsSync(defaultConfigPath),
-    hasCaInput: hasCaInput(defaultEnvNode || {}),
-  });
 
   checks.push({
     source: "env",
     hasUsername: Boolean(process.env.GITLAB_USERNAME || process.env.CREDENTIAL_1),
     hasToken: Boolean(process.env.GITLAB_TOKEN || process.env.CREDENTIAL_2),
     hasCaInput: hasCaInput(process.env),
-  });
-
-  const overridePath = cfgFlag ? path.resolve(cfgFlag) : null;
-  const overrideEnvNode = overridePath ? readEnvNodeIfPresent(overridePath) : null;
-  checks.push({
-    source: "openclaw-config-override",
-    path: overridePath,
-    exists: overridePath ? fs.existsSync(overridePath) : false,
-    hasCaInput: hasCaInput(overrideEnvNode || {}),
   });
 
   const dotenvPath = envDir ? path.resolve(envDir, ".env") : null;

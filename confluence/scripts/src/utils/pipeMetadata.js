@@ -4,16 +4,12 @@
  * Manages the metadata file that stores localId mappings and original content
  * during ADF editing. Metadata persists across the prepare → show-changes → finalize workflow.
  *
- * Default location: ~/.openclaw/workspace/skills/confluence/
- * Custom location: via --pipe-dir flag or CONFLUENCE_PIPE_DIR env var
+ * Location: via --pipe-dir flag or CONFLUENCE_PIPE_DIR env var
  */
 
 const fs = require("fs");
 const path = require("path");
-const os = require("os");
 
-// Default pipe base directory - matches OpenClaw workspace structure
-const DEFAULT_PIPE_BASE_DIR = path.join(os.homedir(), ".openclaw", "workspace", "skills", "confluence");
 const DEFAULT_METADATA_FILENAME = ".confluence-pipe-metadata.json";
 const DEFAULT_PIPE_FILENAME = ".confluence-pipe";
 
@@ -74,7 +70,7 @@ function resolveMetadataFilePath(customPath = null) {
  * Get the canonical pipe base directory
  * Priority:
  * 1. CONFLUENCE_PIPE_DIR env var (for testing/custom location)
- * 2. Default: ~/.openclaw/workspace/skills/confluence
+ * 2. Default: none (must be provided by env or flag)
  *
  * @returns {string} - Absolute path to pipe directory
  */
@@ -83,7 +79,7 @@ function getPipeBaseDir() {
     if (envDir) {
         return path.resolve(envDir);
     }
-    return path.resolve(DEFAULT_PIPE_BASE_DIR);
+    throw new Error("Missing CONFLUENCE_PIPE_DIR; provide --pipe-dir or set CONFLUENCE_PIPE_DIR.");
 }
 
 /**

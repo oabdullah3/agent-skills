@@ -325,7 +325,7 @@ function printHelp() {
   const usageLines = CANONICAL_COMMANDS.map((cmd) => `  ${cmd.usage}`);
 
   const helpText = [
-    "Deterministic Jira CLI for OpenClaw",
+    "Deterministic Jira CLI",
     "",
     "Usage:",
     ...usageLines,
@@ -338,7 +338,6 @@ function printHelp() {
     "",
     "Global flags:",
     "  --env-dir <path>           Directory containing .env with Jira credentials",
-    "  --config-path <path>       Path to openclaw.json",
     "  --format <json|text>       Output format (default text)",
     "  --explain                  Include read-plan diagnostics for read commands",
     "  --human-approval-obtained  Execute approved create/edit mutations (never first run)",
@@ -346,7 +345,6 @@ function printHelp() {
     "",
     "doctor credentials flags:",
     "  --env-dir <path>           Optional credential source probe path (<path>/.env)",
-    "  --config-path <path>       Optional OpenClaw config probe path",
     "  --format <json|text>       Output format (default text)",
     "",
     "me flags:",

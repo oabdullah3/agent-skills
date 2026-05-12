@@ -80,7 +80,7 @@ function normalizeValue(v) {
 
 function printHelp() {
   const lines = [
-    `Deterministic OpenClaw GitLab CLI (v${version})`,
+    `Deterministic GitLab CLI (v${version})`,
     "",
     "Usage:",
     "  gitlab-cli doctor credentials [flags]",
@@ -103,7 +103,6 @@ function printHelp() {
     "Global flags:",
     "  --format <json|text>          Output format (default text)",
     "  --gitlab-base-url <url>       Runtime GitLab base URL (required except doctor credentials)",
-    "  --config-path <path>          OpenClaw config override path",
     "  --env-dir <path>              Directory containing .env credential file",
     "  --clone-root <path>           Clone root override",
     "",

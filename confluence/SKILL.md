@@ -1,6 +1,9 @@
 ---
-name: openclaw-confluence-cli
-description: Deterministic Confluence operations for OpenClaw agents using confluence-cli only, with strict human approval gates for all mutations
+name: confluence-skill
+version: 1.0.0
+description: Deterministic Confluence operations using confluence-cli only, with strict human approval gates for all mutations
+required_environment_variables: [CONFLUENCE_CLOUD_ID, CONFLUENCE_EMAIL, CONFLUENCE_API_TOKEN, CONFLUENCE_PIPE_DIR]
+optional_environmenta_variables: [CONFLUENCE_ENV_DIR, AGENT_NAME]
 ---
 
 # Confluence Manager Skill
@@ -26,22 +29,27 @@ Always:
 
 Before handling Confluence requests:
 1. Tell user you are validating config and approval gates.
-2. Remind user credentials are loaded from OpenClaw config (`skills.entries.confluence-manager.env`).
-3. Confirm you will not read or print credentials.
+2. Confirm you will not read or print credentials.
+3. If credentials are missing, ask for an `--env-dir` path so the CLI can load `<env-dir>/.env`.
 4. Verify Confluence routing trigger exists in `AGENT.md`; if missing, ask approval before editing.
 
 ## 3) Invocation and Environment
 
-Preferred invocation order:
-1. `~/node_modules/.bin/confluence-cli`
-2. `./node_modules/.bin/confluence-cli`
-2. `confluence-cli`
+Resolve `SKILL_DIR` by locating this `SKILL.md` and using its directory path.
+Assume the `scripts/` folder sits next to this `SKILL.md`.
+Use this deterministic invocation for all commands:
 
-Do not pass `--env-dir` / `--config-path` by default.
-Use `--config-path` only when config lookup fails.
+```bash
+CONF_CLI="<SKILL_DIR>/scripts/bin/conf-cli.js"
+node "$CONF_CLI" <command> --format json
+```
 
-Do not pass `--pipe-dir` by default.
-Use `--pipe-dir` only when automatic pipe resolution fails.
+Notes:
+- `<SKILL_DIR>` is the directory containing this `SKILL.md`.
+- First try to resolve credentials from process env.
+- If credentials are missing, try to infer a likely `--env-dir` from known project locations.
+- If that fails, ask the user for the `--env-dir` path and remind them to populate the `.env` file with the required variables.
+- Do not pass `--pipe-dir` by default. Use `--pipe-dir` only when automatic pipe resolution fails.
 
 ## 4) Approval Contract
 
@@ -78,7 +86,6 @@ Top-level commands:
 Global flags:
 - `--format json|text`
 - `--env-dir <path>`
-- `--config-path <path>`
 
 ### 5.1 `page search` flags and pagination
 
@@ -257,90 +264,90 @@ Execution guidance for one-shot success:
 ### 6.1 Read/discovery
 
 ```bash
-confluence-cli space search --query "Engineering" --limit 20 --start 0 --format json
-confluence-cli page search --title "Release Plan" --space-key ENG --limit 20 --start 0 --format json
-confluence-cli page search --page-id 12345 --with-content --body-format atlas_doc_format --format json
-confluence-cli page search --space-key ENG --label "release" --label "approved" --updated-from "2026-01-01" --updated-to "2026-12-31" --format json
-confluence-cli page search --page-id 12345 --with-comments [10,0] --with-attachments [10,0] --with-children [10,0] --format json
-confluence-cli space search --space-key ENG --with-description --with-homepage --with-permissions [10,0] --with-labels [10,0] --format json
+node "$CONF_CLI" space search --query "Engineering" --limit 20 --start 0 --format json
+node "$CONF_CLI" page search --title "Release Plan" --space-key ENG --limit 20 --start 0 --format json
+node "$CONF_CLI" page search --page-id 12345 --with-content --body-format atlas_doc_format --format json
+node "$CONF_CLI" page search --space-key ENG --label "release" --label "approved" --updated-from "2026-01-01" --updated-to "2026-12-31" --format json
+node "$CONF_CLI" page search --page-id 12345 --with-comments [10,0] --with-attachments [10,0] --with-children [10,0] --format json
+node "$CONF_CLI" space search --space-key ENG --with-description --with-homepage --with-permissions [10,0] --with-labels [10,0] --format json
 ```
 
 ### 6.1b Profile discovery (`me`)
 
 ```bash
-confluence-cli me --recent-edits --drafts --saved --limit 10 --start 0 --format json
+node "$CONF_CLI" me --recent-edits --drafts --saved --limit 10 --start 0 --format json
 ```
 
 ### 6.2 Create page (non-template)
 
 ```bash
-confluence-cli page create --space-key CH1 --title "Q2 Plan" --page-location "./Programs/Planning/" --operation-mode prepare --format json
+node "$CONF_CLI" page create --space-key CH1 --title "Q2 Plan" --page-location "./Programs/Planning/" --operation-mode prepare --format json
 # edit .confluence-pipe
-confluence-cli page create --space-key CH1 --title "Q2 Plan" --page-location "./Programs/Planning/" --operation-mode show-changes --pipe-changed --format json
-confluence-cli page create --space-key CH1 --title "Q2 Plan" --page-location "./Programs/Planning/" --operation-mode finalize --human-approval-obtained --format json
+node "$CONF_CLI" page create --space-key CH1 --title "Q2 Plan" --page-location "./Programs/Planning/" --operation-mode show-changes --pipe-changed --format json
+node "$CONF_CLI" page create --space-key CH1 --title "Q2 Plan" --page-location "./Programs/Planning/" --operation-mode finalize --human-approval-obtained --format json
 ```
 
 ### 6.3 Create page (template preset)
 
 ```bash
-confluence-cli page create --incident-report --title "INC-2026-0042" --operation-mode prepare --format json
+node "$CONF_CLI" page create --incident-report --title "INC-2026-0042" --operation-mode prepare --format json
 # pipe preloaded from template
-confluence-cli page create --incident-report --title "INC-2026-0042" --operation-mode show-changes --pipe-changed --format json
-confluence-cli page create --incident-report --title "INC-2026-0042" --operation-mode finalize --human-approval-obtained --format json
+node "$CONF_CLI" page create --incident-report --title "INC-2026-0042" --operation-mode show-changes --pipe-changed --format json
+node "$CONF_CLI" page create --incident-report --title "INC-2026-0042" --operation-mode finalize --human-approval-obtained --format json
 ```
 
 Preset with destination override examples:
 
 ```bash
-confluence-cli page create --meeting-notes --space-key CH1 --title "Meeting Notes 2026-04-09" --operation-mode prepare --format json
-confluence-cli page create --meeting-notes --space-key CH1 --page-location "./Ops/Meetings/" --title "Meeting Notes 2026-04-09" --operation-mode prepare --format json
+node "$CONF_CLI" page create --meeting-notes --space-key CH1 --title "Meeting Notes 2026-04-09" --operation-mode prepare --format json
+node "$CONF_CLI" page create --meeting-notes --space-key CH1 --page-location "./Ops/Meetings/" --title "Meeting Notes 2026-04-09" --operation-mode prepare --format json
 ```
 
 ### 6.4 Edit content (default patch-first)
 
 ```bash
-confluence-cli page edit content --page-id 12345 --operation-mode prepare --format json
+node "$CONF_CLI" page edit content --page-id 12345 --operation-mode prepare --format json
 # edit only intended sections
-confluence-cli page edit content --page-id 12345 --operation-mode show-changes --pipe-changed --format json
-confluence-cli page edit content --page-id 12345 --operation-mode finalize --human-approval-obtained --format json
+node "$CONF_CLI" page edit content --page-id 12345 --operation-mode show-changes --pipe-changed --format json
+node "$CONF_CLI" page edit content --page-id 12345 --operation-mode finalize --human-approval-obtained --format json
 ```
 
 ### 6.4b Edit content (resolve then mutate without upfront page-id)
 
 ```bash
-confluence-cli page edit content --query "Release Plan" --space-key CH1 --operation-mode resolve --format json
-confluence-cli page edit content --page-id 12345 --operation-mode prepare --format json
-confluence-cli page edit content --page-id 12345 --operation-mode show-changes --pipe-changed --format json
-confluence-cli page edit content --page-id 12345 --operation-mode finalize --human-approval-obtained --format json
+node "$CONF_CLI" page edit content --query "Release Plan" --space-key CH1 --operation-mode resolve --format json
+node "$CONF_CLI" page edit content --page-id 12345 --operation-mode prepare --format json
+node "$CONF_CLI" page edit content --page-id 12345 --operation-mode show-changes --pipe-changed --format json
+node "$CONF_CLI" page edit content --page-id 12345 --operation-mode finalize --human-approval-obtained --format json
 ```
 
 ### 6.5 Edit content (direct heading patch)
 
 ```bash
-confluence-cli page edit content --page-id 12345 --operation-mode prepare --format json
-confluence-cli page edit content --page-id 12345 --operation-mode show-changes --pipe-changed --patch-scope heading --target-heading "Target Section" --patch-mode replace --format json
-confluence-cli page edit content --page-id 12345 --operation-mode finalize --human-approval-obtained --patch-scope heading --target-heading "Target Section" --patch-mode replace --format json
+node "$CONF_CLI" page edit content --page-id 12345 --operation-mode prepare --format json
+node "$CONF_CLI" page edit content --page-id 12345 --operation-mode show-changes --pipe-changed --patch-scope heading --target-heading "Target Section" --patch-mode replace --format json
+node "$CONF_CLI" page edit content --page-id 12345 --operation-mode finalize --human-approval-obtained --patch-scope heading --target-heading "Target Section" --patch-mode replace --format json
 ```
 
 ### 6.6 Edit content (full rewrite override)
 
 ```bash
-confluence-cli page edit content --page-id 12345 --operation-mode prepare --format json
+node "$CONF_CLI" page edit content --page-id 12345 --operation-mode prepare --format json
 # edit .confluence-pipe
-confluence-cli page edit content --page-id 12345 --operation-mode show-changes --pipe-changed --full-rewrite --format json
-confluence-cli page edit content --page-id 12345 --operation-mode finalize --human-approval-obtained --full-rewrite --format json
+node "$CONF_CLI" page edit content --page-id 12345 --operation-mode show-changes --pipe-changed --full-rewrite --format json
+node "$CONF_CLI" page edit content --page-id 12345 --operation-mode finalize --human-approval-obtained --full-rewrite --format json
 ```
 
 ### 6.7 Edit details
 
 ```bash
-confluence-cli page edit details --page-id 12345 --new-title "Release Plan v2" --operation-mode prepare --format json
-confluence-cli page edit details --page-id 12345 --new-title "Release Plan v2" --operation-mode finalize --human-approval-obtained --format json
+node "$CONF_CLI" page edit details --page-id 12345 --new-title "Release Plan v2" --operation-mode prepare --format json
+node "$CONF_CLI" page edit details --page-id 12345 --new-title "Release Plan v2" --operation-mode finalize --human-approval-obtained --format json
 ```
 
 ```bash
-confluence-cli page edit details --page-id 12345 --comment "Looks good" --label "release-approved" --operation-mode prepare --format json
-confluence-cli page edit details --page-id 12345 --comment "Looks good" --label "release-approved" --operation-mode finalize --human-approval-obtained --format json
+node "$CONF_CLI" page edit details --page-id 12345 --comment "Looks good" --label "release-approved" --operation-mode prepare --format json
+node "$CONF_CLI" page edit details --page-id 12345 --comment "Looks good" --label "release-approved" --operation-mode finalize --human-approval-obtained --format json
 ```
 
 ## 7) ADF Conversion Risk Guardrail
@@ -360,7 +367,7 @@ On successful finalize for:
 - `page edit content`
 - `page edit details`
 
-CLI posts a best-effort audit comment (change type + UTC time + OpenClaw ref + actor email).
+CLI posts a best-effort audit comment (change type + UTC time + actor email).
 If audit-stamp creation fails but mutation succeeds, report mutation success and stamp failure separately.
 
 ## 9) Unsupported Feature Policy
@@ -378,7 +385,7 @@ Fallback response pattern:
 - Missing/ambiguous page or space: run discovery, present candidates, ask user to choose exact target.
 - Missing approval: do not finalize.
 - Pipe resolution failure: pass `--pipe-dir`.
-- Config lookup failure: pass `--config-path`.
+- Credential lookup failure: pass `--env-dir`.
 - Patch/full-rewrite conflict: remove either `--full-rewrite` or scoped patch flags.
 
 ## 11) Mutation Checklist

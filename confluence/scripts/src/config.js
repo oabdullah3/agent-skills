@@ -1,29 +1,8 @@
 const fs = require("fs");
-const os = require("os");
 const path = require("path");
 const { CliError } = require("./errors");
 
 const REQUIRED_KEYS = ["CONFLUENCE_CLOUD_ID", "CONFLUENCE_EMAIL", "CONFLUENCE_API_TOKEN"];
-
-function readOpenClawConfig(filePath) {
-  try {
-    const raw = fs.readFileSync(filePath, "utf8");
-    return JSON.parse(raw);
-  } catch (err) {
-    throw new CliError(`Unable to read OpenClaw config at ${filePath}: ${err.message}`, 2);
-  }
-}
-
-function getNested(obj, pathParts) {
-  let cursor = obj;
-  for (const part of pathParts) {
-    if (cursor == null || typeof cursor !== "object" || !(part in cursor)) {
-      return undefined;
-    }
-    cursor = cursor[part];
-  }
-  return cursor;
-}
 
 function readDotEnvFile(filePath) {
   let raw;
@@ -77,9 +56,12 @@ function normalizeCredentialSet(source, label) {
 }
 
 function loadCredentials(options = {}) {
-  const skillName = options.skillName || process.env.CONFLUENCE_SKILL_ENTRY || "confluence-manager";
-  const envDir = options.envDir || process.env.CONFLUENCE_ENV_DIR;
+  if (process.env.CONFLUENCE_CLOUD_ID && process.env.CONFLUENCE_EMAIL && process.env.CONFLUENCE_API_TOKEN) {
+    const normalized = normalizeCredentialSet(process.env, "process.env");
+    return { ...normalized, source: "env" };
+  }
 
+  const envDir = options.envDir || process.env.CONFLUENCE_ENV_DIR;
   if (envDir) {
     const envPath = path.resolve(envDir, ".env");
     const parsedEnv = readDotEnvFile(envPath);
@@ -87,32 +69,10 @@ function loadCredentials(options = {}) {
     return { ...normalized, source: "dotenv", envPath };
   }
 
-  if (process.env.CONFLUENCE_CLOUD_ID && process.env.CONFLUENCE_EMAIL && process.env.CONFLUENCE_API_TOKEN) {
-    const normalized = normalizeCredentialSet(process.env, "process.env");
-    return { ...normalized, source: "env" };
-  }
-
-  const configPath =
-    options.configPath ||
-    process.env.OPENCLAW_CONFIG ||
-    path.join(os.homedir(), ".openclaw", "openclaw.json");
-
-  const parsed = readOpenClawConfig(configPath);
-  const envNode = getNested(parsed, ["skills", "entries", skillName, "env"]);
-
-  if (!envNode) {
-    throw new CliError(`Skill entry '${skillName}' not found at skills.entries.${skillName}.env in ${configPath}`, 2);
-  }
-
-  const cloudId = envNode.CONFLUENCE_CLOUD_ID;
-  const email = envNode.CONFLUENCE_EMAIL;
-  const token = envNode.CONFLUENCE_API_TOKEN;
-
-  if (!cloudId || !email || !token) {
-    throw new CliError(`Missing CONFLUENCE_CLOUD_ID, CONFLUENCE_EMAIL, or CONFLUENCE_API_TOKEN in skill '${skillName}'`, 2);
-  }
-
-  return { cloudId, email, token, skillName, configPath, source: "openclaw-config" };
+  throw new CliError(
+    "Missing Confluence credentials. Provide CONFLUENCE_CLOUD_ID, CONFLUENCE_EMAIL, and CONFLUENCE_API_TOKEN via process env or use --env-dir.",
+    2
+  );
 }
 
 module.exports = { loadCredentials };

@@ -1,13 +1,16 @@
 ---
-name: openclaw-gitlab-cli
+name: gitlab-skill
+version: 1.0.0
 description: Agent-facing GitLab workflow for private repositories with concise user commands, MR-first delivery, and strict human approval gates for mutations.
+required_environment_variables: [GITLAB_USERNAME, GITLAB_TOKEN]
+optional_environmenta_variables: [GITLAB_ENV_DIR, GITLAB_CA_BUNDLE, GITLAB_CA_BUNDLE_PATH, GITLAB_CA_CERT_PEM, GITLAB_CA_PEM, CREDENTIAL_3, AGENT_NAME]
 ---
 
 # GitLab CLI Manager Skill
 
 ## 1) Mission
 
-You are operating `gitlab-cli` for OpenClaw.
+You are operating `gitlab-cli`.
 
 Primary objective:
 - complete repository tasks with minimal user effort
@@ -61,22 +64,26 @@ Always:
 
 ## 5) Runtime Contract
 
-Preferred invocation:
-- `"$GITLAB_CLI_BIN" <command> --format json`
+Resolve `SKILL_DIR` by locating this `SKILL.md` and using its directory path.
+Assume the `scripts/` folder sits next to this `SKILL.md`.
+Use this deterministic invocation for all commands:
 
-Binary resolution order:
-1. `./node_modules/.bin/gitlab-cli`
-2. `gitlab-cli`
+```bash
+GITLAB_CLI="<SKILL_DIR>/scripts/bin/gitlab-cli.js"
+node "$GITLAB_CLI" <command> --format json
+```
 
 Startup check:
-- run `"$GITLAB_CLI_BIN" --help`
+- run `node "$GITLAB_CLI" --help`
 - if unavailable, stop and report concise failure
 
 Credential behavior:
 - trust CLI credential resolution
 - do not proactively inspect credential files
 - only react if command returns explicit auth failure
-- default OpenClaw config path is `~/.openclaw/openclaw.json`
+- first try to resolve credentials from process env
+- if credentials are missing, try to infer a likely `--env-dir` from known project locations
+- if that fails, ask for the `--env-dir` path and remind them to populate the `.env` file with the required variables
 
 ## 6) Workflow Model (MR-First)
 
@@ -122,18 +129,18 @@ Before finalize, verify:
 
 ## 8) Canonical Commands
 
-- `gitlab-cli doctor credentials [--format json]`
-- `gitlab-cli repo search --gitlab-base-url <url> [--query <text>] [--max-results <n>] [--format json]`
-- `gitlab-cli repo file search --gitlab-base-url <url> (choose one: --repo-id | --repo-path | --repo-url | --query) [--query <text>] [--path <dir>] [--ref <name>] [--max-results <n>] [--format json]`
-- `gitlab-cli repo file read --gitlab-base-url <url> (choose one: --repo-id | --repo-path | --repo-url | --query) --file-path <path> [--ref <name>] [--include-content] [--format json]`
-- `gitlab-cli repo branch list --gitlab-base-url <url> (choose one: --repo-id | --repo-path | --repo-url | --query) [--search <text>] [--max-results <n>] [--format json]`
-- `gitlab-cli repo branch create --gitlab-base-url <url> (choose one: --repo-id | --repo-path | --repo-url | --query) --branch-name <name> [--from-ref <ref>] --operation-mode <prepare|show-changes|finalize> [--preview-token <token>] [--idempotency-key <key>] [--human-approval-obtained] [--format json]`
-- `gitlab-cli repo change apply --gitlab-base-url <url> (choose one: --repo-id | --repo-path | --repo-url | --query) --branch <name> [--actions-json <json|path> | --action <create|update|delete> --file-path <path> --content <text>] [--message <text>] --operation-mode <prepare|show-changes|finalize> [--preview-token <token>] [--idempotency-key <key>] [--human-approval-obtained] [--format json]`
-- `gitlab-cli repo mr list --gitlab-base-url <url> (choose one: --repo-id | --repo-path | --repo-url | --query) [--state <opened|closed|merged>] [--source-branch <name>] [--target-branch <name>] [--max-results <n>] [--format json]`
-- `gitlab-cli repo mr show --gitlab-base-url <url> (choose one: --repo-id | --repo-path | --repo-url | --query) --mr-iid <iid> [--format json]`
-- `gitlab-cli repo mr diff --gitlab-base-url <url> (choose one: --repo-id | --repo-path | --repo-url | --query) --mr-iid <iid> [--format json]`
-- `gitlab-cli repo mr create --gitlab-base-url <url> (choose one: --repo-id | --repo-path | --repo-url | --query) --source-branch <name> --target-branch <name> --title <text> [--description <text>] [--draft <true|false>] --operation-mode <prepare|show-changes|finalize> [--preview-token <token>] [--idempotency-key <key>] [--human-approval-obtained] [--format json]`
-- `gitlab-cli me --gitlab-base-url <url> [--format json]`
+- `node "$GITLAB_CLI" doctor credentials [--format json]`
+- `node "$GITLAB_CLI" repo search --gitlab-base-url <url> [--query <text>] [--max-results <n>] [--format json]`
+- `node "$GITLAB_CLI" repo file search --gitlab-base-url <url> (choose one: --repo-id | --repo-path | --repo-url | --query) [--query <text>] [--path <dir>] [--ref <name>] [--max-results <n>] [--format json]`
+- `node "$GITLAB_CLI" repo file read --gitlab-base-url <url> (choose one: --repo-id | --repo-path | --repo-url | --query) --file-path <path> [--ref <name>] [--include-content] [--format json]`
+- `node "$GITLAB_CLI" repo branch list --gitlab-base-url <url> (choose one: --repo-id | --repo-path | --repo-url | --query) [--search <text>] [--max-results <n>] [--format json]`
+- `node "$GITLAB_CLI" repo branch create --gitlab-base-url <url> (choose one: --repo-id | --repo-path | --repo-url | --query) --branch-name <name> [--from-ref <ref>] --operation-mode <prepare|show-changes|finalize> [--preview-token <token>] [--idempotency-key <key>] [--human-approval-obtained] [--format json]`
+- `node "$GITLAB_CLI" repo change apply --gitlab-base-url <url> (choose one: --repo-id | --repo-path | --repo-url | --query) --branch <name> [--actions-json <json|path> | --action <create|update|delete> --file-path <path> --content <text>] [--message <text>] --operation-mode <prepare|show-changes|finalize> [--preview-token <token>] [--idempotency-key <key>] [--human-approval-obtained] [--format json]`
+- `node "$GITLAB_CLI" repo mr list --gitlab-base-url <url> (choose one: --repo-id | --repo-path | --repo-url | --query) [--state <opened|closed|merged>] [--source-branch <name>] [--target-branch <name>] [--max-results <n>] [--format json]`
+- `node "$GITLAB_CLI" repo mr show --gitlab-base-url <url> (choose one: --repo-id | --repo-path | --repo-url | --query) --mr-iid <iid> [--format json]`
+- `node "$GITLAB_CLI" repo mr diff --gitlab-base-url <url> (choose one: --repo-id | --repo-path | --repo-url | --query) --mr-iid <iid> [--format json]`
+- `node "$GITLAB_CLI" repo mr create --gitlab-base-url <url> (choose one: --repo-id | --repo-path | --repo-url | --query) --source-branch <name> --target-branch <name> --title <text> [--description <text>] [--draft <true|false>] --operation-mode <prepare|show-changes|finalize> [--preview-token <token>] [--idempotency-key <key>] [--human-approval-obtained] [--format json]`
+- `node "$GITLAB_CLI" me --gitlab-base-url <url> [--format json]`
 
 ## 9) Implicit Workflow Rules for Short User Prompts
 

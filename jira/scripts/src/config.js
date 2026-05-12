@@ -1,5 +1,4 @@
 const fs = require("fs");
-const os = require("os");
 const path = require("path");
 const { CliError } = require("./errors");
 
@@ -18,29 +17,6 @@ function keyPresence(source) {
     JIRA_EMAIL: Boolean(source?.JIRA_EMAIL),
     JIRA_API_TOKEN: Boolean(source?.JIRA_API_TOKEN),
   };
-}
-
-function readOpenClawConfig(filePath) {
-  try {
-    const raw = fs.readFileSync(filePath, "utf8");
-    return JSON.parse(raw);
-  } catch (err) {
-    throw new CliError(
-      `Unable to read OpenClaw config at ${filePath}: ${err.message}`,
-      2
-    );
-  }
-}
-
-function getNested(obj, pathParts) {
-  let cursor = obj;
-  for (const part of pathParts) {
-    if (cursor == null || typeof cursor !== "object" || !(part in cursor)) {
-      return undefined;
-    }
-    cursor = cursor[part];
-  }
-  return cursor;
 }
 
 function readDotEnvFile(filePath) {
@@ -108,21 +84,6 @@ function normalizeCredentialSet(source, label) {
 }
 
 function loadCredentials(options = {}) {
-  const skillName = options.skillName || process.env.JIRA_SKILL_ENTRY || "jira-manager";
-  const envDir = options.envDir || process.env.JIRA_ENV_DIR;
-
-  if (envDir) {
-    const envPath = path.resolve(envDir, ".env");
-    const parsedEnv = readDotEnvFile(envPath);
-    const normalized = normalizeCredentialSet(parsedEnv, `.env at ${envPath}`);
-
-    return {
-      ...normalized,
-      source: "dotenv",
-      envPath,
-    };
-  }
-
   if (
     process.env.JIRA_CLOUD_ID &&
     process.env.JIRA_EMAIL &&
@@ -135,51 +96,48 @@ function loadCredentials(options = {}) {
     };
   }
 
-  const configPath =
-    options.configPath ||
-    process.env.OPENCLAW_CONFIG ||
-    path.join(os.homedir(), ".openclaw", "openclaw.json");
+  const envDir = options.envDir || process.env.JIRA_ENV_DIR;
+  if (envDir) {
+    const envPath = path.resolve(envDir, ".env");
+    const parsedEnv = readDotEnvFile(envPath);
+    const normalized = normalizeCredentialSet(parsedEnv, `.env at ${envPath}`);
 
-  const parsed = readOpenClawConfig(configPath);
-  const envNode = getNested(parsed, ["skills", "entries", skillName, "env"]);
-
-  if (!envNode) {
-    throw new CliError(
-      `Skill entry '${skillName}' not found at skills.entries.${skillName}.env in ${configPath}`,
-      2
-    );
+    return {
+      ...normalized,
+      source: "dotenv",
+      envPath,
+    };
   }
 
-  const cloudId = envNode.JIRA_CLOUD_ID;
-  const email = envNode.JIRA_EMAIL;
-  const token = envNode.JIRA_API_TOKEN;
-
-  if (!cloudId || !email || !token) {
-    throw new CliError(
-      `Missing JIRA_CLOUD_ID, JIRA_EMAIL, or JIRA_API_TOKEN in skill '${skillName}'`,
-      2
-    );
-  }
-
-  return {
-    cloudId,
-    email,
-    token,
-    skillName,
-    configPath,
-    source: "openclaw-config",
-  };
+  throw new CliError(
+    "Missing Jira credentials. Provide JIRA_CLOUD_ID, JIRA_EMAIL, and JIRA_API_TOKEN via process env or use --env-dir.",
+    2
+  );
 }
 
 function inspectCredentials(options = {}) {
   const skillName = options.skillName || process.env.JIRA_SKILL_ENTRY || "jira-manager";
   const envDir = options.envDir || process.env.JIRA_ENV_DIR || null;
-  const configPath =
-    options.configPath ||
-    process.env.OPENCLAW_CONFIG ||
-    path.join(os.homedir(), ".openclaw", "openclaw.json");
 
   const attempts = [];
+
+  const envAttempt = {
+    source: "env",
+    selected: false,
+    keyPresence: keyPresence(process.env),
+    missingKeys: REQUIRED_KEYS.filter((key) => !process.env[key]),
+    preview: {
+      cloudId: redactedValue(process.env.JIRA_CLOUD_ID),
+      email: redactedValue(process.env.JIRA_EMAIL),
+      token: redactedValue(process.env.JIRA_API_TOKEN),
+    },
+  };
+  if (envAttempt.missingKeys.length === 0) {
+    envAttempt.selected = true;
+    attempts.push(envAttempt);
+    return buildDiagnosticsResult(skillName, attempts, "env", envAttempt);
+  }
+  attempts.push(envAttempt);
 
   if (envDir) {
     const envPath = path.resolve(envDir, ".env");
@@ -212,7 +170,7 @@ function inspectCredentials(options = {}) {
         if (attempt.missingKeys.length === 0) {
           attempt.selected = true;
           attempts.push(attempt);
-          return buildDiagnosticsResult(skillName, configPath, attempts, "dotenv", attempt);
+          return buildDiagnosticsResult(skillName, attempts, "dotenv", attempt);
         }
       } catch (err) {
         attempt.error = err.message;
@@ -220,75 +178,12 @@ function inspectCredentials(options = {}) {
     }
 
     attempts.push(attempt);
-    return buildDiagnosticsResult(skillName, configPath, attempts, "none", null);
   }
 
-  const envAttempt = {
-    source: "env",
-    selected: false,
-    keyPresence: keyPresence(process.env),
-    missingKeys: REQUIRED_KEYS.filter((key) => !process.env[key]),
-    preview: {
-      cloudId: redactedValue(process.env.JIRA_CLOUD_ID),
-      email: redactedValue(process.env.JIRA_EMAIL),
-      token: redactedValue(process.env.JIRA_API_TOKEN),
-    },
-  };
-  if (envAttempt.missingKeys.length === 0) {
-    envAttempt.selected = true;
-    attempts.push(envAttempt);
-    return buildDiagnosticsResult(skillName, configPath, attempts, "env", envAttempt);
-  }
-  attempts.push(envAttempt);
-
-  const configAttempt = {
-    source: "openclaw-config",
-    selected: false,
-    configPath,
-    exists: fs.existsSync(configPath),
-    skillName,
-    keyPresence: keyPresence({}),
-    missingKeys: REQUIRED_KEYS,
-    error: null,
-    preview: {
-      cloudId: null,
-      email: null,
-      token: null,
-    },
-  };
-
-  if (configAttempt.exists) {
-    try {
-      const parsed = readOpenClawConfig(configPath);
-      const envNode = getNested(parsed, ["skills", "entries", skillName, "env"]);
-      if (!envNode) {
-        configAttempt.error = `Skill entry '${skillName}' not found`;
-      } else {
-        configAttempt.keyPresence = keyPresence(envNode);
-        configAttempt.missingKeys = REQUIRED_KEYS.filter((key) => !envNode[key]);
-        configAttempt.preview = {
-          cloudId: redactedValue(envNode.JIRA_CLOUD_ID),
-          email: redactedValue(envNode.JIRA_EMAIL),
-          token: redactedValue(envNode.JIRA_API_TOKEN),
-        };
-        if (configAttempt.missingKeys.length === 0) {
-          configAttempt.selected = true;
-          attempts.push(configAttempt);
-          return buildDiagnosticsResult(skillName, configPath, attempts, "openclaw-config", configAttempt);
-        }
-      }
-    } catch (err) {
-      configAttempt.error = err.message;
-    }
-  } else {
-    configAttempt.error = "Config file not found";
-  }
-
-  attempts.push(configAttempt);
-  return buildDiagnosticsResult(skillName, configPath, attempts, "none", null);
+  return buildDiagnosticsResult(skillName, attempts, "none", null);
 }
 
-function buildDiagnosticsResult(skillName, configPath, attempts, selectedSource, selectedAttempt) {
+function buildDiagnosticsResult(skillName, attempts, selectedSource, selectedAttempt) {
   const allMissing = REQUIRED_KEYS.filter((key) => {
     if (!selectedAttempt) return true;
     return !selectedAttempt.keyPresence[key];
@@ -298,14 +193,13 @@ function buildDiagnosticsResult(skillName, configPath, attempts, selectedSource,
     mode: "doctor-credentials",
     selectedSource,
     skillName,
-    configPath,
-    lookupOrder: ["dotenv", "env", "openclaw-config"],
+    lookupOrder: ["env", "dotenv"],
     attempts,
     missingKeys: allMissing,
     remediation: selectedSource === "none"
       ? [
-          "Provide complete Jira credentials in one source: --env-dir .env, process env, or OpenClaw config.",
-          "If using config fallback, ensure skills.entries.<skillName>.env contains JIRA_CLOUD_ID, JIRA_EMAIL, and JIRA_API_TOKEN.",
+          "Provide complete Jira credentials in one source: process env or --env-dir .env.",
+          "If using --env-dir, ensure the .env file contains JIRA_CLOUD_ID, JIRA_EMAIL, and JIRA_API_TOKEN.",
         ]
       : ["Credential source resolved successfully."],
   };

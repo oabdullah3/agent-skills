@@ -2,6 +2,12 @@ const fs = require("fs");
 const path = require("path");
 const { CliError } = require("../errors");
 
+function resolveAgentLabelPrefix() {
+  const raw = String(process.env.AGENT_NAME || "AGENT").trim();
+  const cleaned = raw.replace(/\s+/g, "_").replace(/[^A-Za-z0-9_-]/g, "");
+  return cleaned || "AGENT";
+}
+
 function hasActionFlags(args) {
   return Boolean(
     args["comment-body"] ||
@@ -283,11 +289,12 @@ async function executeActionPlan(client, plan, dryRun) {
     if (action.kind === "labels") {
       const issueData = await client.getIssue(action.issue, 3, "labels");
       const currentLabels = issueData?.fields?.labels || [];
+      const stampPrefix = resolveAgentLabelPrefix();
 
       let currentStamp = -1;
       for (const lbl of currentLabels) {
-        if (typeof lbl === "string" && lbl.startsWith("OpenClawed_")) {
-          const num = parseInt(lbl.replace("OpenClawed_", ""), 10);
+        if (typeof lbl === "string" && lbl.startsWith(`${stampPrefix}_`)) {
+          const num = parseInt(lbl.replace(`${stampPrefix}_`, ""), 10);
           if (!isNaN(num) && num > currentStamp) {
             currentStamp = num;
           }
@@ -298,18 +305,18 @@ async function executeActionPlan(client, plan, dryRun) {
       const updateOps = [];
 
       if (currentStamp > 0) {
-        updateOps.push({ remove: `OpenClawed_${currentStamp}` });
+        updateOps.push({ remove: `${stampPrefix}_${currentStamp}` });
       }
       if (currentStamp !== -1) {
-        updateOps.push({ remove: `OpenClawed_${currentStamp}` });
+        updateOps.push({ remove: `${stampPrefix}_${currentStamp}` });
       }
-      updateOps.push({ add: `OpenClawed_${nextStamp}` });
+      updateOps.push({ add: `${stampPrefix}_${nextStamp}` });
 
       action.remove.forEach(lbl => updateOps.push({ remove: lbl }));
       action.add.forEach(lbl => updateOps.push({ add: lbl }));
 
       await client.editIssue(action.issue, { update: { labels: updateOps } }, 3);
-      results.push({ kind: action.kind, issue: action.issue, stamp: `OpenClawed_${nextStamp}`, updated: true });
+      results.push({ kind: action.kind, issue: action.issue, stamp: `${stampPrefix}_${nextStamp}`, updated: true });
       continue;
     }
     if (action.kind === "details") {
@@ -342,7 +349,7 @@ function summarizeActionPlan(plan) {
     if (action.kind === "assignee") return { kind: action.kind, issue: action.issue, accountId: action.accountId };
     if (action.kind === "link") return { kind: action.kind, issue: action.issue, linkType: action.linkType, targetIssue: action.targetIssue };
     if (action.kind === "transition") return { kind: action.kind, issue: action.issue, transitionId: action.transitionId };
-    if (action.kind === "labels") return { kind: action.kind, issue: action.issue, add: action.add?.length > 0 ? action.add : undefined, remove: action.remove?.length > 0 ? action.remove : undefined, note: "Includes OpenClawed auto-increment" };
+    if (action.kind === "labels") return { kind: action.kind, issue: action.issue, add: action.add?.length > 0 ? action.add : undefined, remove: action.remove?.length > 0 ? action.remove : undefined, note: `Includes ${resolveAgentLabelPrefix()} auto-increment` };
     if (action.kind === "details") return { kind: action.kind, issue: action.issue, version: action.version, fields: action.fields };
     return action;
   });

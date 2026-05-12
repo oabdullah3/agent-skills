@@ -1,6 +1,9 @@
 ---
-name: openclaw-jira-cli
-description: Deterministic Jira operations using openclaw-jira-cli with explicit human approval gates for all create/edit mutations.
+name: jira-skill
+version: 1.0.0
+description: Deterministic Jira operations using jira-cli with explicit human approval gates for all create/edit mutations.
+required_environment_variables: [JIRA_CLOUD_ID, JIRA_EMAIL, JIRA_API_TOKEN]
+optional_environmenta_variables: [JIRA_ENV_DIR, AGENT_NAME]
 ---
 
 # Jira CLI Manager Skill
@@ -25,50 +28,53 @@ Always:
 
 ## 2) Startup Protocol
 
-1. Resolve binary in this order i.e. $JIRA_CLI_BIN equals either of the three below:
-- ~/node_modules/.bin/jira-cli (start all commands with this by default)
-- ./node_modules/.bin/jira-cli 
-- jira-cli
-2. Run post-install verification:
-- "$JIRA_CLI_BIN" --help
-3. If jira-cli is missing and user approves installation, run private-registry install flow.
-4. If verification fails, report exact error and stop for human direction.
+1. Resolve `SKILL_DIR` by locating this `SKILL.md` and using its directory path.
+2. Assume the `scripts/` folder sits next to this `SKILL.md`.
+2. Set the CLI path once per session:
+
+```bash
+JIRA_CLI="<SKILL_DIR>/scripts/bin/jira-cli.js"
+```
+
+3. Run post-install verification:
+
+```bash
+node "$JIRA_CLI" --help
+```
+
+4. If jira-cli is missing and user approves installation, run private-registry install flow.
+5. If verification fails, report exact error and stop for human direction.
 
 ## 3) Invocation and Environment
 
 Preferred command form:
 
 ```bash
-"$JIRA_CLI_BIN" <command> --format json
+node "$JIRA_CLI" <command> --format json
 ```
 
 Deterministic invocation contract:
 1. First attempt: run command with no credential flags.
-2. If credential resolution fails: retry same command with --config-path "<path>".
-3. If user explicitly requests env-file routing: run with --env-dir "<dir>".
+2. If credential resolution fails: try to infer a likely `--env-dir` from known project locations.
+3. If that fails, ask the user for the `--env-dir` path and remind them to populate the `.env` file with the required variables.
 4. Never inspect or print credential values from any source.
 5. For retries, keep business flags identical; only add credential-routing flags.
 
 Credential source precedence (runtime behavior):
-1. --env-dir "<dir>" => reads <dir>/.env.
-2. Otherwise, if process env has JIRA_CLOUD_ID, JIRA_EMAIL, JIRA_API_TOKEN => uses process env.
-3. Otherwise => uses OpenClaw config (default ~/.openclaw/openclaw.json, or --config-path override).
+1. If process env has JIRA_CLOUD_ID, JIRA_EMAIL, JIRA_API_TOKEN => uses process env.
+2. Otherwise, --env-dir "<dir>" => reads <dir>/.env.
 
 Credential error recovery playbook:
 1. If error mentions missing JIRA_CLOUD_ID/JIRA_EMAIL/JIRA_API_TOKEN:
-- rerun with --config-path when a known config location exists.
-- if user asked for env-dir flow, ensure <dir>/.env exists and rerun with --env-dir.
-2. If error mentions missing skill entry:
-- rerun with correct --config-path and confirm the requested skill entry name.
-3. If auth fails (401/403):
+- ask for `--env-dir` and ensure <dir>/.env exists before rerun.
+2. If auth fails (401/403):
 - stop and report that credentials/permissions are invalid; do not keep retrying mutations.
 
 Canonical invocation templates:
 
 ```bash
-"$JIRA_CLI_BIN" issue search --jql "project = ABC ORDER BY updated DESC" --format json
-"$JIRA_CLI_BIN" issue search --jql "project = ABC ORDER BY updated DESC" --config-path "$HOME/.openclaw/openclaw.json" --format json
-"$JIRA_CLI_BIN" issue search --jql "project = ABC ORDER BY updated DESC" --env-dir "." --format json
+node "$JIRA_CLI" issue search --jql "project = ABC ORDER BY updated DESC" --format json
+node "$JIRA_CLI" issue search --jql "project = ABC ORDER BY updated DESC" --env-dir "." --format json
 ```
 
 ## 4) Approval Contract
@@ -94,14 +100,14 @@ Approval matrix:
 ## 5) Command Surface (Canonical)
 
 Canonical command families:
-- jira-cli doctor credentials [--format json]
-- jira-cli project search --query <text> [--operation-mode <search|resolve>] [--with-components] [--max-results <n>] [--start-at <n>] [--explain] [--format json]
-- jira-cli issue search --jql <query> [--operation-mode <search|resolve>] [--start-at <n>] [--max-results <n>] [--explain] [--format json]
-- jira-cli issue search --issue-key <key> [--operation-mode <search|resolve>] [--with-comments [max,start]] [--with-transitions [max,start]] [--with-assignable [max,start]] [--with-worklogs [max,start]] [--with-attachments [max,start]] [--explain] [--format json]
-- jira-cli issue create --summary <text> (choose exactly one: --project-id | --project-key | --project-query) (choose exactly one: --issue-type-id | --issue-type-name) [--incident-report|--bug-triage|--change-request|--release-blocker] [--operation-mode <prepare|show-changes|finalize|resolve>] [--preview-ref] [--idempotency-key] [--skip-permission-preflight] [--priority-id] [--component-ids] [--parent-key|--parent-id] [--environment-value] [--environment-field-id] [--story-points] [--story-points-field-id] [--original-estimate] [action flags] [--format json]
-- jira-cli issue edit add --issue <key> [--operation-mode <prepare|show-changes|finalize|resolve>] [--preview-ref] [--idempotency-key] [--skip-permission-preflight] [--comment-body] [--worklog-time-spent] [--attach-file] [--labels] [--link-type/--link-issue] [--get-details] [--format json]
-- jira-cli issue edit replace --issue <key> [--operation-mode <prepare|show-changes|finalize|resolve>] [--preview-ref] [--idempotency-key] [--skip-permission-preflight] [--summary] [--description] [--start-date] [--due-date] [--priority-id] [--component-ids] [--parent-key|--parent-id] [--environment-value] [--environment-field-id] [--story-points] [--story-points-field-id] [--original-estimate] [--acceptance-value] [--patch-mode <replace|append|prepend>] [--patch-field <description|acceptance|both|all>] [--transition-id] [--assignee-id] [--labels-add] [--labels-remove] [--get-details] [--format json]
-- jira-cli me [--assigned] [--reported] [--watched] [--recent] [--start-at <n>] [--max-results <n>] [--with-comments [max,start]] [--with-transitions [max,start]] [--with-assignable [max,start]] [--with-worklogs [max,start]] [--with-attachments [max,start]] [--explain] [--format json]
+- node "$JIRA_CLI" doctor credentials [--format json]
+- node "$JIRA_CLI" project search --query <text> [--operation-mode <search|resolve>] [--with-components] [--max-results <n>] [--start-at <n>] [--explain] [--format json]
+- node "$JIRA_CLI" issue search --jql <query> [--operation-mode <search|resolve>] [--start-at <n>] [--max-results <n>] [--explain] [--format json]
+- node "$JIRA_CLI" issue search --issue-key <key> [--operation-mode <search|resolve>] [--with-comments [max,start]] [--with-transitions [max,start]] [--with-assignable [max,start]] [--with-worklogs [max,start]] [--with-attachments [max,start]] [--explain] [--format json]
+- node "$JIRA_CLI" issue create --summary <text> (choose exactly one: --project-id | --project-key | --project-query) (choose exactly one: --issue-type-id | --issue-type-name) [--incident-report|--bug-triage|--change-request|--release-blocker] [--operation-mode <prepare|show-changes|finalize|resolve>] [--preview-ref] [--idempotency-key] [--skip-permission-preflight] [--priority-id] [--component-ids] [--parent-key|--parent-id] [--environment-value] [--environment-field-id] [--story-points] [--story-points-field-id] [--original-estimate] [action flags] [--format json]
+- node "$JIRA_CLI" issue edit add --issue <key> [--operation-mode <prepare|show-changes|finalize|resolve>] [--preview-ref] [--idempotency-key] [--skip-permission-preflight] [--comment-body] [--worklog-time-spent] [--attach-file] [--labels] [--link-type/--link-issue] [--get-details] [--format json]
+- node "$JIRA_CLI" issue edit replace --issue <key> [--operation-mode <prepare|show-changes|finalize|resolve>] [--preview-ref] [--idempotency-key] [--skip-permission-preflight] [--summary] [--description] [--start-date] [--due-date] [--priority-id] [--component-ids] [--parent-key|--parent-id] [--environment-value] [--environment-field-id] [--story-points] [--story-points-field-id] [--original-estimate] [--acceptance-value] [--patch-mode <replace|append|prepend>] [--patch-field <description|acceptance|both|all>] [--transition-id] [--assignee-id] [--labels-add] [--labels-remove] [--get-details] [--format json]
+- node "$JIRA_CLI" me [--assigned] [--reported] [--watched] [--recent] [--start-at <n>] [--max-results <n>] [--with-comments [max,start]] [--with-transitions [max,start]] [--with-assignable [max,start]] [--with-worklogs [max,start]] [--with-attachments [max,start]] [--explain] [--format json]
 
 Legacy route policy (non-canonical):
 - Do not invoke these legacy route families: issue-comment-add, issue-worklog-add, issue-details, issue-dates, issue-acceptance, issue-type-list, or issue-edit-without-mode.
@@ -114,7 +120,7 @@ Legacy route policy (non-canonical):
 	- issue-type-list -> project search and inspect issueTypes
 
 Critical flags that must stay in docs/help alignment:
---human-approval-obtained, --project-id, --project-key, --project-query, --issue-type-id, --issue-type-name, --issue-key, --jql, --start-at, --max-results, --with-comments, --with-transitions, --with-assignable, --with-worklogs, --with-attachments, --comment-body, --worklog-time-spent, --attach-file, --labels, --labels-add, --labels-remove, --transition-id, --assignee-id, --priority-id, --component-ids, --parent-key, --parent-id, --environment-value, --environment-field-id, --story-points, --story-points-field-id, --original-estimate, --operation-mode, --preview-ref, --idempotency-key, --skip-permission-preflight, --incident-report, --bug-triage, --change-request, --release-blocker, --patch-mode, --patch-field, --env-dir, --config-path, --format, --explain.
+--human-approval-obtained, --project-id, --project-key, --project-query, --issue-type-id, --issue-type-name, --issue-key, --jql, --start-at, --max-results, --with-comments, --with-transitions, --with-assignable, --with-worklogs, --with-attachments, --comment-body, --worklog-time-spent, --attach-file, --labels, --labels-add, --labels-remove, --transition-id, --assignee-id, --priority-id, --component-ids, --parent-key, --parent-id, --environment-value, --environment-field-id, --story-points, --story-points-field-id, --original-estimate, --operation-mode, --preview-ref, --idempotency-key, --skip-permission-preflight, --incident-report, --bug-triage, --change-request, --release-blocker, --patch-mode, --patch-field, --env-dir, --format, --explain.
 
 Permission preflight contract:
 - Finalize runs permission preflight by default and blocks on missing capability categories.
@@ -151,7 +157,7 @@ Resolve/ambiguity contract:
 - Never auto-select from ambiguous resolution results.
 
 Credential diagnostics workflow:
-- Use `jira-cli doctor credentials --format json` for non-mutating credential troubleshooting.
+- Use `node "$JIRA_CLI" doctor credentials --format json` for non-mutating credential troubleshooting.
 - Do not print or infer raw token/email/cloud-id values from any source.
 - Use returned selectedSource, attempts, and missingKeys to decide the next remediation step.
 
@@ -160,49 +166,49 @@ Credential diagnostics workflow:
 Project discovery:
 
 ```bash
-"$JIRA_CLI_BIN" project search --query "<project text>" --with-components --max-results 20 --explain --format json
+node "$JIRA_CLI" project search --query "<project text>" --with-components --max-results 20 --explain --format json
 ```
 
 Issue discovery:
 
 ```bash
-"$JIRA_CLI_BIN" issue search --jql "project = ABC AND statusCategory != Done" --start-at 0 --max-results 20 --explain --format json
-"$JIRA_CLI_BIN" issue search --issue-key ABC-123 --with-comments [20,0] --with-transitions [20,0] --with-assignable [20,0] --with-worklogs [20,0] --with-attachments [20,0] --explain --format json
+node "$JIRA_CLI" issue search --jql "project = ABC AND statusCategory != Done" --start-at 0 --max-results 20 --explain --format json
+node "$JIRA_CLI" issue search --issue-key ABC-123 --with-comments [20,0] --with-transitions [20,0] --with-assignable [20,0] --with-worklogs [20,0] --with-attachments [20,0] --explain --format json
 ```
 
 Profile discovery with pagination parity:
 
 ```bash
-"$JIRA_CLI_BIN" me --assigned --recent --start-at 0 --max-results 10 --with-comments [5,0] --with-worklogs [5,0] --explain --format json
+node "$JIRA_CLI" me --assigned --recent --start-at 0 --max-results 10 --with-comments [5,0] --with-worklogs [5,0] --explain --format json
 ```
 
 Create preview and execute (multi-action example):
 
 ```bash
-"$JIRA_CLI_BIN" issue create --operation-mode prepare --summary "Investigate login regression" --project-id 10024 --issue-type-name "Task" --comment-body "triage started" --labels "urgent,openclaw" --worklog-time-spent "15m" --format json
-"$JIRA_CLI_BIN" issue create --operation-mode show-changes --summary "Investigate login regression" --project-id 10024 --issue-type-name "Task" --comment-body "triage started" --labels "urgent,openclaw" --worklog-time-spent "15m" --format json
-"$JIRA_CLI_BIN" issue create --operation-mode finalize --preview-ref "<ref>" --idempotency-key "create-<key>" --summary "Investigate login regression" --project-id 10024 --issue-type-name "Task" --comment-body "triage started" --labels "urgent,openclaw" --worklog-time-spent "15m" --format json --human-approval-obtained
+node "$JIRA_CLI" issue create --operation-mode prepare --summary "Investigate login regression" --project-id 10024 --issue-type-name "Task" --comment-body "triage started" --labels "urgent,triage" --worklog-time-spent "15m" --format json
+node "$JIRA_CLI" issue create --operation-mode show-changes --summary "Investigate login regression" --project-id 10024 --issue-type-name "Task" --comment-body "triage started" --labels "urgent,triage" --worklog-time-spent "15m" --format json
+node "$JIRA_CLI" issue create --operation-mode finalize --preview-ref "<ref>" --idempotency-key "create-<key>" --summary "Investigate login regression" --project-id 10024 --issue-type-name "Task" --comment-body "triage started" --labels "urgent,triage" --worklog-time-spent "15m" --format json --human-approval-obtained
 ```
 
 Edit add preview and execute:
 
 ```bash
-"$JIRA_CLI_BIN" issue edit add --operation-mode show-changes --issue ABC-123 --comment-body "Progress update" --labels "next-step" --format json
-"$JIRA_CLI_BIN" issue edit add --operation-mode finalize --preview-ref "<ref>" --idempotency-key "add-<key>" --issue ABC-123 --comment-body "Progress update" --labels "next-step" --format json --human-approval-obtained
+node "$JIRA_CLI" issue edit add --operation-mode show-changes --issue ABC-123 --comment-body "Progress update" --labels "next-step" --format json
+node "$JIRA_CLI" issue edit add --operation-mode finalize --preview-ref "<ref>" --idempotency-key "add-<key>" --issue ABC-123 --comment-body "Progress update" --labels "next-step" --format json --human-approval-obtained
 ```
 
 Edit replace preview and execute:
 
 ```bash
-"$JIRA_CLI_BIN" issue edit replace --operation-mode show-changes --issue ABC-123 --summary "Clarified acceptance" --description "Full replacement text" --labels-add "validated" --labels-remove "stale" --format json
-"$JIRA_CLI_BIN" issue edit replace --operation-mode finalize --preview-ref "<ref>" --idempotency-key "replace-<key>" --issue ABC-123 --summary "Clarified acceptance" --description "Full replacement text" --labels-add "validated" --labels-remove "stale" --format json --human-approval-obtained
+node "$JIRA_CLI" issue edit replace --operation-mode show-changes --issue ABC-123 --summary "Clarified acceptance" --description "Full replacement text" --labels-add "validated" --labels-remove "stale" --format json
+node "$JIRA_CLI" issue edit replace --operation-mode finalize --preview-ref "<ref>" --idempotency-key "replace-<key>" --issue ABC-123 --summary "Clarified acceptance" --description "Full replacement text" --labels-add "validated" --labels-remove "stale" --format json --human-approval-obtained
 ```
 
 Giant reference templates (all major flags, with mutually-exclusive groups shown inline):
 
 ```bash
 # Giant issue search template (choose exactly one primary selector)
-"$JIRA_CLI_BIN" issue search \
+node "$JIRA_CLI" issue search \
 	--operation-mode search \
 	--jql "project = ABC ORDER BY updated DESC" \
 	# OR: --issue-key ABC-123 \
@@ -215,12 +221,12 @@ Giant reference templates (all major flags, with mutually-exclusive groups shown
 	--with-attachments [20,0] \
 	--explain \
 	--env-dir "." \
-	# OR: --config-path "$HOME/.openclaw/openclaw.json" \
+	# OR: --env-dir "." \
 	--format json
 
 # Giant project search template
-"$JIRA_CLI_BIN" project search \
-	--query "OpenClaw" \
+node "$JIRA_CLI" project search \
+	--query "Example" \
 	--operation-mode search \
 	# OR: --operation-mode resolve \
 	--with-components \
@@ -228,18 +234,18 @@ Giant reference templates (all major flags, with mutually-exclusive groups shown
 	--max-results 50 \
 	--explain \
 	--env-dir "." \
-	# OR: --config-path "$HOME/.openclaw/openclaw.json" \
+	# OR: --env-dir "." \
 	--format json
 
 # Giant issue create template (mutually-exclusive groups called out)
-"$JIRA_CLI_BIN" issue create \
+node "$JIRA_CLI" issue create \
 	--operation-mode show-changes \
 	# OR: --operation-mode prepare | --operation-mode finalize | --operation-mode resolve \
 	--summary "Investigate login regression" \
 	--description "Comprehensive create payload" \
 	--project-id 10024 \
 	# OR: --project-key ABC \
-	# OR: --project-query "OpenClaw" \
+	# OR: --project-query "Example" \
 	--issue-type-name "Task" \
 	# OR: --issue-type-id 10001 \
 	--incident-report \
@@ -248,7 +254,7 @@ Giant reference templates (all major flags, with mutually-exclusive groups shown
 	--idempotency-key "create-<key>" \
 	--skip-permission-preflight \
 	--comment-body "triage started" \
-	--labels "urgent,openclaw" \
+	--labels "urgent,triage" \
 	--worklog-time-spent "15m" \
 	--worklog-comment "triage worklog" \
 	--worklog-started "2026-04-13T10:00:00.000+0000" \
@@ -271,11 +277,11 @@ Giant reference templates (all major flags, with mutually-exclusive groups shown
 	--get-details \
 	--human-approval-obtained \
 	--env-dir "." \
-	# OR: --config-path "$HOME/.openclaw/openclaw.json" \
+	# OR: --env-dir "." \
 	--format json
 
 # Giant issue edit add template
-"$JIRA_CLI_BIN" issue edit add \
+node "$JIRA_CLI" issue edit add \
 	--operation-mode show-changes \
 	# OR: --operation-mode prepare | --operation-mode finalize | --operation-mode resolve \
 	--issue ABC-123 \
@@ -293,11 +299,11 @@ Giant reference templates (all major flags, with mutually-exclusive groups shown
 	--get-details \
 	--human-approval-obtained \
 	--env-dir "." \
-	# OR: --config-path "$HOME/.openclaw/openclaw.json" \
+	# OR: --env-dir "." \
 	--format json
 
 # Giant issue edit replace template
-"$JIRA_CLI_BIN" issue edit replace \
+node "$JIRA_CLI" issue edit replace \
 	--operation-mode show-changes \
 	# OR: --operation-mode prepare | --operation-mode finalize | --operation-mode resolve \
 	--issue ABC-123 \
@@ -329,7 +335,7 @@ Giant reference templates (all major flags, with mutually-exclusive groups shown
 	--get-details \
 	--human-approval-obtained \
 	--env-dir "." \
-	# OR: --config-path "$HOME/.openclaw/openclaw.json" \
+	# OR: --env-dir "." \
 	--format json
 ```
 
@@ -343,15 +349,15 @@ Giant reference templates (all major flags, with mutually-exclusive groups shown
 
 ## 8) Mutation Audit/Verification
 
-- CLI mutation flows increment OpenClawed_X label trail for audit history.
+- CLI mutation flows increment an audit label trail for history.
 - Post-mutation verification is mandatory.
 - Run follow-up searches and validate changed fields.
 
 Verification examples:
 
 ```bash
-"$JIRA_CLI_BIN" issue search --issue-key ABC-123 --format json
-"$JIRA_CLI_BIN" issue search --jql "key = ABC-123" --format json
+node "$JIRA_CLI" issue search --issue-key ABC-123 --format json
+node "$JIRA_CLI" issue search --jql "key = ABC-123" --format json
 ```
 
 Verify:

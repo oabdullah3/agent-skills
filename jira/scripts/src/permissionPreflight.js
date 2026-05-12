@@ -51,28 +51,6 @@ async function runPermissionPreflight(client, args, options) {
     };
   }
 
-  // Internal deterministic test hook for denied-path verification without mutating calls.
-  if (String(process.env.OPENCLAW_PERMISSION_PREFLIGHT_FORCE_DENY || "").toLowerCase() === "true") {
-    const missingCategories = requirements.map((req) => req.category);
-    throw new CliError(
-      `Permission preflight blocked ${commandName}. Missing categories: ${missingCategories.join(", ")}.`,
-      3,
-      {
-        code: "ERR_PERMISSION_PREFLIGHT",
-        category: "permission",
-        retryable: false,
-        remediation:
-          "Adjust Jira permissions or rerun with --skip-permission-preflight only when human explicitly approves override.",
-        details: {
-          commandName,
-          missingCategories,
-          missingRequirements: requirements,
-          context,
-        },
-      }
-    );
-  }
-
   const result = await client.checkPermissions(requirements, context);
   if (!result.ok) {
     const missingCategories = Array.from(new Set((result.missing || []).map((item) => item.category)));

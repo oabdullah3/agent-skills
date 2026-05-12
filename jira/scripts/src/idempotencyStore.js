@@ -1,27 +1,33 @@
 const fs = require("fs");
-const os = require("os");
 const path = require("path");
 const { CliError } = require("./errors");
 
-const STORE_PATH = path.join(os.homedir(), ".openclaw", "jira-cli-idempotency.json");
-const DEFAULT_TTL_SECONDS = 3600;
+const DEFAULT_TTL_SECONDS = 60;
 
-function loadStore() {
+function storePath(invocationCwd = process.cwd()) {
+  return path.join(invocationCwd, ".agent", "jira-idempotency.json");
+}
+
+function loadStore(invocationCwd) {
   try {
-    if (!fs.existsSync(STORE_PATH)) {
+    const pathToStore = storePath(invocationCwd);
+    if (!fs.existsSync(pathToStore)) {
       return { entries: {} };
     }
-    const raw = fs.readFileSync(STORE_PATH, "utf8");
+    const raw = fs.readFileSync(pathToStore, "utf8");
     const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" && parsed.entries ? parsed : { entries: {} };
+    if (!parsed || typeof parsed !== "object" || !parsed.entries) return { entries: {} };
+    cleanupExpired(parsed);
+    return parsed;
   } catch (_) {
     return { entries: {} };
   }
 }
 
-function saveStore(store) {
-  fs.mkdirSync(path.dirname(STORE_PATH), { recursive: true });
-  fs.writeFileSync(STORE_PATH, `${JSON.stringify(store, null, 2)}\n`, "utf8");
+function saveStore(store, invocationCwd) {
+  const pathToStore = storePath(invocationCwd);
+  fs.mkdirSync(path.dirname(pathToStore), { recursive: true });
+  fs.writeFileSync(pathToStore, `${JSON.stringify(store, null, 2)}\n`, "utf8");
 }
 
 function cleanupExpired(store) {
@@ -33,15 +39,15 @@ function cleanupExpired(store) {
   }
 }
 
-function getIdempotentReplay(idempotencyKey, fingerprint) {
+function getIdempotentReplay(idempotencyKey, fingerprint, invocationCwd = process.cwd()) {
   if (!idempotencyKey) {
     return null;
   }
 
-  const store = loadStore();
+  const store = loadStore(invocationCwd);
   cleanupExpired(store);
   const entry = store.entries[idempotencyKey];
-  saveStore(store);
+  saveStore(store, invocationCwd);
 
   if (!entry) {
     return null;
@@ -57,19 +63,19 @@ function getIdempotentReplay(idempotencyKey, fingerprint) {
   return entry.result || null;
 }
 
-function storeIdempotentResult(idempotencyKey, fingerprint, result, ttlSeconds = DEFAULT_TTL_SECONDS) {
+function storeIdempotentResult(idempotencyKey, fingerprint, result, ttlSeconds = DEFAULT_TTL_SECONDS, invocationCwd = process.cwd()) {
   if (!idempotencyKey) {
     return;
   }
 
-  const store = loadStore();
+  const store = loadStore(invocationCwd);
   cleanupExpired(store);
   store.entries[idempotencyKey] = {
     fingerprint,
     result,
     expiresAt: Date.now() + ttlSeconds * 1000,
   };
-  saveStore(store);
+  saveStore(store, invocationCwd);
 }
 
 module.exports = {

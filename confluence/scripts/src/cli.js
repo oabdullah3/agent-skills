@@ -133,7 +133,7 @@ function createOutput(format) {
 
 function printHelp() {
   const helpText = [
-    `Deterministic Confluence CLI for OpenClaw (v${version})`,
+    `Deterministic Confluence CLI (v${version})`,
     "",
     "Usage:",
     "  confluence-cli space search [flags]",
@@ -152,7 +152,6 @@ function printHelp() {
     "",
     "Global flags:",
     "  --env-dir <path>           Directory containing .env with Confluence credentials",
-    "  --config-path <path>       Path to openclaw.json config file",
     "  --format <json|text>       Output format (default text)",
     "",
     "me flags:",

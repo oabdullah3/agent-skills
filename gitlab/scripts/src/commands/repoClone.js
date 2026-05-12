@@ -61,7 +61,7 @@ async function repoCloneCommand(client, flags, output, context) {
       throw new Error(
         "GitLab TLS Verification Failed.\n" +
         "You MUST provide the GitLab CA Certificate to the CLI to clone this repository securely.\n" +
-        "Add CREDENTIAL_3 (the Base64 or PEM certificate bundle) to your OpenClaw JSON credentials or .env file.\n" +
+        "Add CREDENTIAL_3 (the Base64 or PEM certificate bundle) to your environment or .env file.\n" +
         "DO NOT use GIT_SSL_NO_VERIFY=1 or insecure modes."
       );
     }

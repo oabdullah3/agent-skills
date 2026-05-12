@@ -1,11 +1,13 @@
 const crypto = require("crypto");
 const fs = require("fs");
-const os = require("os");
 const path = require("path");
 const { CliError } = require("./errors");
 
-const DEFAULT_PREVIEW_TTL_SECONDS = 900;
-const PREVIEW_REF_STORE_PATH = path.join(os.homedir(), ".openclaw", "jira-cli-preview-refs.json");
+const DEFAULT_PREVIEW_TTL_SECONDS = 60;
+
+function previewRefStorePath(invocationCwd = process.cwd()) {
+  return path.join(invocationCwd, ".agent", "jira-preview-refs.json");
+}
 
 function stableStringify(value) {
   if (value === null || typeof value !== "object") {
@@ -30,12 +32,13 @@ function buildPlanId(commandName, targetKey, planHash) {
   return sha256(`${commandName}:${targetKey}:${planHash}`).slice(0, 20);
 }
 
-function loadPreviewRefStore() {
+function loadPreviewRefStore(invocationCwd) {
+  const storePath = previewRefStorePath(invocationCwd);
   try {
-    if (!fs.existsSync(PREVIEW_REF_STORE_PATH)) {
+    if (!fs.existsSync(storePath)) {
       return { entries: {} };
     }
-    const raw = fs.readFileSync(PREVIEW_REF_STORE_PATH, "utf8");
+    const raw = fs.readFileSync(storePath, "utf8");
     const parsed = JSON.parse(raw);
     return parsed && typeof parsed === "object" && parsed.entries ? parsed : { entries: {} };
   } catch (_) {
@@ -43,9 +46,10 @@ function loadPreviewRefStore() {
   }
 }
 
-function savePreviewRefStore(store) {
-  fs.mkdirSync(path.dirname(PREVIEW_REF_STORE_PATH), { recursive: true });
-  fs.writeFileSync(PREVIEW_REF_STORE_PATH, `${JSON.stringify(store, null, 2)}\n`, "utf8");
+function savePreviewRefStore(store, invocationCwd) {
+  const storePath = previewRefStorePath(invocationCwd);
+  fs.mkdirSync(path.dirname(storePath), { recursive: true });
+  fs.writeFileSync(storePath, `${JSON.stringify(store, null, 2)}\n`, "utf8");
 }
 
 function cleanupExpiredPreviewRefs(store) {
@@ -57,7 +61,7 @@ function cleanupExpiredPreviewRefs(store) {
   }
 }
 
-function issuePreviewRef({ planId, commandName, targetKey, actor, planHash, expiresInSeconds = DEFAULT_PREVIEW_TTL_SECONDS }) {
+function issuePreviewRef({ planId, commandName, targetKey, actor, planHash, expiresInSeconds = DEFAULT_PREVIEW_TTL_SECONDS, invocationCwd = process.cwd() }) {
   const now = Date.now();
   const expiresAt = now + expiresInSeconds * 1000;
   const previewRef = String(planId || "").trim();
@@ -65,7 +69,7 @@ function issuePreviewRef({ planId, commandName, targetKey, actor, planHash, expi
     throw new CliError("Unable to issue preview reference without a valid plan id.", 2);
   }
 
-  const store = loadPreviewRefStore();
+  const store = loadPreviewRefStore(invocationCwd);
   cleanupExpiredPreviewRefs(store);
   store.entries[previewRef] = {
     commandName,
@@ -74,7 +78,7 @@ function issuePreviewRef({ planId, commandName, targetKey, actor, planHash, expi
     planHash,
     expiresAt,
   };
-  savePreviewRefStore(store);
+  savePreviewRefStore(store, invocationCwd);
 
   return {
     previewRef,
@@ -87,7 +91,7 @@ function normalizePreviewRef(ref) {
   return String(ref).trim();
 }
 
-function verifyPreviewRef(ref, expected) {
+function verifyPreviewRef(ref, expected, invocationCwd = process.cwd()) {
   const normalizedRef = normalizePreviewRef(ref);
   if (!normalizedRef) {
     throw new CliError(
@@ -96,10 +100,10 @@ function verifyPreviewRef(ref, expected) {
     );
   }
 
-  const store = loadPreviewRefStore();
+  const store = loadPreviewRefStore(invocationCwd);
   cleanupExpiredPreviewRefs(store);
   const entry = store.entries[normalizedRef];
-  savePreviewRefStore(store);
+  savePreviewRefStore(store, invocationCwd);
 
   if (!entry) {
     throw new CliError(

@@ -33,6 +33,12 @@ const PRESETS = require("../jiraPresetRegistry.json");
 const APPROVAL_INSTRUCTION =
   "YOU ARE REQUIRED TO SHARE THESE DETAILS WITH YOUR HUMAN AND ASK THEM IF THEY AGREE WITH THE UPDATES ABOUT TO BE MADE. IF THE HUMAN AGREES, RERUN THE EXACT SAME COMMAND WITH THE --HUMAN-APPROVAL-OBTAINED FLAG APPENDED OTHERWISE DON'T RERUN IT.";
 
+function resolveAgentLabelPrefix() {
+  const raw = String(process.env.AGENT_NAME || "AGENT").trim();
+  const cleaned = raw.replace(/\s+/g, "_").replace(/[^A-Za-z0-9_-]/g, "");
+  return cleaned || "AGENT";
+}
+
 async function issueCreateCommand(client, args, output) {
   const operationMode = String(args["operation-mode"] || "show-changes").toLowerCase();
   const presetResolution = resolvePresetArgs(args);
@@ -250,8 +256,8 @@ async function issueCreateCommand(client, args, output) {
     context: preflightContext,
   });
 
-  const userLabels = effectiveArgs.labels ? String(effectiveArgs.labels).split(",").map(s => s.trim()).filter(Boolean) : [];
-  userLabels.push("OpenClawed_0");
+    const userLabels = effectiveArgs.labels ? String(effectiveArgs.labels).split(",").map(s => s.trim()).filter(Boolean) : [];
+    userLabels.push(`${resolveAgentLabelPrefix()}_0`);
   fields.labels = userLabels;
 
   const created = await client.createIssue(fields);
@@ -363,7 +369,7 @@ async function verifyCreateMutation(client, issueIdOrKey) {
   try {
     const issue = await client.getIssue(issueIdOrKey, 3, "summary,status,labels");
     checks.push({ name: "issue-exists", passed: Boolean(issue?.id || issue?.key) });
-    checks.push({ name: "label-stamp-present", passed: Array.isArray(issue?.fields?.labels) && issue.fields.labels.some((l) => String(l).startsWith("OpenClawed_")) });
+      checks.push({ name: "label-stamp-present", passed: Array.isArray(issue?.fields?.labels) && issue.fields.labels.some((l) => String(l).startsWith(`${resolveAgentLabelPrefix()}_`)) });
   } catch (err) {
     checks.push({ name: "issue-exists", passed: false, message: err.message });
   }
