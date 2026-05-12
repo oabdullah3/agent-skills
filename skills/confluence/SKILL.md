@@ -34,9 +34,9 @@ Before handling Confluence requests:
 4. Verify Confluence routing trigger exists in `AGENT.md`; if missing, ask approval before editing.
 
 Before running any command, the agent must ensure the environment is consistent with the skill's package.json:
-1. Verify that Node >= 20 is installed.
-2. Check if <SKILL_DIR>/node_modules exists and contains the dependencies listed in <SKILL_DIR>/package.json (currently: markdown-it@^14.0.0).
-3. If missing or outdated, run `npm install` in <SKILL_DIR>.
+1. Verify that Node >= 20 is installed via node -v. Ask user for permission and install/upgrade it if necessary.
+2. Use npm list -g to see if it contains the dependencies listed in <SKILL_DIR>/package.json (currently: markdown-it@^14.0.0).
+3. If missing or outdated, run `npm install -g`.
 4. Only then proceed with the command.
 
 ## 3) Invocation and Environment

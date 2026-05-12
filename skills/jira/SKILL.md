@@ -65,9 +65,9 @@ Credential source precedence (runtime behavior):
 2. Otherwise, --env-dir "<dir>" => reads <dir>/.env.
 
 Before running any command, the agent must ensure the environment is consistent with the skill's package.json:
-1. Verify that Node >= 20 is installed.
-2. Check if <SKILL_DIR>/node_modules exists and contains the dependencies listed in package.json (currently: none).
-3. If missing or outdated, run `npm install` in <SKILL_DIR>.
+1. Verify that Node >= 20 is installed via node -v. Ask user for permission and install/upgrade it if necessary.
+2. Use npm list -g to see if it contains the dependencies listed in <SKILL_DIR>/package.json (currently: none).
+3. If missing or outdated, run `npm install -g`.
 4. Only then proceed with the command.
 
 Credential error recovery playbook:
