@@ -33,6 +33,12 @@ Before handling Confluence requests:
 3. If credentials are missing, ask for an `--env-dir` path so the CLI can load `<env-dir>/.env`.
 4. Verify Confluence routing trigger exists in `AGENT.md`; if missing, ask approval before editing.
 
+Before running any command, the agent must ensure the environment is consistent with the skill's package.json:
+1. Verify that Node >= 20 is installed.
+2. Check if <SKILL_DIR>/node_modules exists and contains the dependencies listed in <SKILL_DIR>/package.json (currently: markdown-it@^14.0.0).
+3. If missing or outdated, run `npm install` in <SKILL_DIR>.
+4. Only then proceed with the command.
+
 ## 3) Invocation and Environment
 
 Resolve `SKILL_DIR` by locating this `SKILL.md` and using its directory path.
@@ -50,13 +56,6 @@ Notes:
 - If credentials are missing, try to infer a likely `--env-dir` from known project locations.
 - If that fails, ask the user for the `--env-dir` path and remind them to populate the `.env` file with the required variables.
 - Do not pass `--pipe-dir` by default. Use `--pipe-dir` only when automatic pipe resolution fails.
-
-### 3.1 Dependency bootstrap
-
-If `node_modules` is missing in `<SKILL_DIR>` or running `conf-cli.js` fails with a module-not-found error:
-- Install dependencies from `<SKILL_DIR>` with `npm install`.
-- Use Node >= 20 (per `package-lock.json`).
-- Re-run the original command after install completes.
 
 ## 4) Approval Contract
 

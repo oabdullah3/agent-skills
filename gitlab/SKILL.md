@@ -85,9 +85,11 @@ Credential behavior:
 - if credentials are missing, try to infer a likely `--env-dir` from known project locations
 - if that fails, ask for the `--env-dir` path and remind them to populate the `.env` file with the required variables
 
-Dependency requirements:
-- Node >= 20.
-- No npm install step is required for runtime (no runtime dependencies listed).
+Before running any command, the agent must ensure the environment is consistent with the skill's package.json:
+1. Verify that Node >= 20 is installed.
+2. Check if <SKILL_DIR>/node_modules exists and contains the dependencies listed in package.json (currently: none).
+3. If missing or outdated, run `npm install` in <SKILL_DIR>.
+4. Only then proceed with the command.
 
 ## 6) Workflow Model (MR-First)
 

@@ -64,9 +64,11 @@ Credential source precedence (runtime behavior):
 1. If process env has JIRA_CLOUD_ID, JIRA_EMAIL, JIRA_API_TOKEN => uses process env.
 2. Otherwise, --env-dir "<dir>" => reads <dir>/.env.
 
-Dependency requirements:
-- Node >= 20.
-- No npm install step is required for runtime (no runtime dependencies listed).
+Before running any command, the agent must ensure the environment is consistent with the skill's package.json:
+1. Verify that Node >= 20 is installed.
+2. Check if <SKILL_DIR>/node_modules exists and contains the dependencies listed in package.json (currently: none).
+3. If missing or outdated, run `npm install` in <SKILL_DIR>.
+4. Only then proceed with the command.
 
 Credential error recovery playbook:
 1. If error mentions missing JIRA_CLOUD_ID/JIRA_EMAIL/JIRA_API_TOKEN:
