@@ -17,34 +17,37 @@ Primary goal:
 - for one user-approved time period
 - and return structured message context for follow-up tasks
 
-## 2) Access Strategy (MCP First, Browser Fallback)
+## 2) Access Strategy (Chrome DevTools MCP required)
 
-Preferred access order:
-1. Chrome DevTools MCP server
-2. Existing browser access tools/skills already available in the environment
-3. Ask user to install/enable MCP access if neither path works
+This skill requires the Chrome DevTools MCP server. It will not attempt alternative browser-access tools.
 
-MCP startup commands:
+MCP is mandatory; startup commands (these need to be added to the mcp config json, wherever that might be):
 
 Linux/macOS/standard:
 ```bash
 npx chrome-devtools-mcp --autoConnect
 ```
 
-WSL fallback:
+WSL fallback (if using WSL host):
 ```bash
 cmd.exe /c npx -y chrome-devtools-mcp@latest -u http://localhost:62801
 ```
+
+Installation / missing MCP behavior:
+- If MCP is not running or not installed, the agent must ask the user to add/start MCP and provide the exact command to run.
+- Do not attempt to use other browser tools or proceed without MCP.
+- Pause and await explicit user confirmation that MCP has been started and the browser approval step (below) has been completed.
+
+Manual approval gate after MCP connect is triggered:
+1. Once MCP initiates a browser connection, do not passively wait.
+2. Prompt the user to manually allow access in Chrome (accept the connection).
+3. Ask the user to reply when access is allowed.
+4. Resume the workflow only after the user confirms approval.
 
 Before connecting to an already-open Chrome profile, require this user action:
 1. In the target Chrome window, open `chrome://inspect/#remote-debugging`
 2. Enable remote debugging
 3. Confirm to the agent that this is done
-
-If access still fails:
-- attempt existing browser tools
-- if unsuccessful, ask user/agent to add or start Chrome DevTools MCP
-- stop extraction steps until browser access is confirmed
 
 ## 3) Mandatory Browser Verification Gate
 
@@ -96,55 +99,60 @@ The script provides:
 For compatibility with this skill contract, create helper runtime wrappers once per page session:
 
 ```javascript
-window.__extractState = { status: 'idle', startedAt: null, doneAt: null, error: null, result: null };
-
-window.__extractStart = function(rangeMode) {
-  window.__extractState = { status: 'running', startedAt: new Date().toISOString(), doneAt: null, error: null, result: null };
+window.__extractState = {status:'idle',startedAt:null,finishedAt:null,count:0,error:null};
+window.__extractResult = null;
+window.__extractStart = (rangeMode)=> {
+  if (window.__extractState.status === 'running') return window.__extractState;
+  window.__extractState = {
+    status: 'running',
+    startedAt: new Date().toISOString(),
+    finishedAt: null,
+    count: 0,
+    error: null
+  };
   window.__extractPromise = window.extractTeamsChat(rangeMode)
-    .then((result) => {
-      window.__extractState.status = 'completed';
-      window.__extractState.doneAt = new Date().toISOString();
-      window.__extractState.result = result;
-      return result;
+    .then(res => {
+      window.__extractResult = res || [];
+      window.__extractState.status = 'done';
+      window.__extractState.finishedAt = new Date().toISOString();
+      window.__extractState.count = window.__extractResult.length;
     })
-    .catch((err) => {
-      window.__extractState.status = 'failed';
-      window.__extractState.doneAt = new Date().toISOString();
-      window.__extractState.error = String(err && err.message ? err.message : err);
-      throw err;
+    .catch(err => {
+      window.__extractState.status = 'error';
+      window.__extractState.error = String(err);
     });
-  return window.__extractPromise;
+  return window.__extractState;
 };
-
-window.__extractStatus = function() {
-  const count = Array.isArray(window.__extractState?.result) ? window.__extractState.result.length : null;
-  return { ...window.__extractState, count };
-};
-
-window.__extractResult = function() {
-  return window.__extractState?.result ?? null;
-};
+window.__extractStatus = () => window.__extractState;
 ```
 
 ## 7) Execution Flow
 
-Run extraction:
+Run extraction (non-blocking):
 ```javascript
 window.__extractStart('last30days');
 ```
 
 Polling contract:
-- poll `window.__extractStatus()` periodically
-- treat this as long-running and be patient
-- do not interrupt unless user asks to cancel
+- poll `window.__extractStatus()` periodically (every 1-2 seconds recommended)
+- each poll returns immediately with current status
+- watch for status transitions: 'running' → 'done' or 'error'
+- the count field shows number of messages collected so far
 
 Completion logic:
-- when status is `completed`, run `window.__extractResult()`
-- when status is `failed`, report error and ask whether to retry with a narrower date range or different chat
+- when status is done, run `window.__extractResult()` to get the message array
+- when status is error, check `window.__extractState.error` for details
+- when status is 'running', continue polling (extraction is still in progress)
+
+Note: The extraction runs as a background promise in the page - MCP calls return immediately, avoiding timeouts.
 
 ## 8) Output Handling
 
-`window.__extractResult()` returns an array of messages (chronological) suitable for downstream analysis.
+`window.__extractResult()` returns the extracted message array ONLY when status is 'done'.
+Always check `window.__extractState.status` first:
+- If 'done': safe to call `window.__extractResult()` for results
+- If 'error': check `window.__extractState.error` for failure details
+- If 'running': extraction still in progress, continue polling
 
 Expected item shape (from extractor):
 - `id`
@@ -173,3 +181,15 @@ Never:
 - extract from other chats without user approval
 - proceed when browser context is ambiguous
 - claim completion before `window.__extractStatus()` reports completion
+
+## 9.5) Reliability Notes
+
+- This non-blocking pattern avoids MCP timeouts by separating:
+  * MCP layer: instant wrapper injection and status polling (milliseconds)
+  * Page layer: background extraction promise (can run minutes)
+- Always verify `window.extractTeamsChat` exists before injection:
+  ```javascript
+  mcp_chrome_devtools_win_evaluate_script({function: "() => !!window.extractTeamsChat"})
+  ```
+- If `extractTeamsChat` becomes undefined (due to page reload/navigation), re-inject the wrapper and restart
+- For very long extractions (>15 mins), consider chunking into weekly ranges and merging results
