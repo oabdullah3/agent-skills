@@ -1,7 +1,7 @@
 ---
 name: teams-extractor-skill
 version: 1.0.0
-description: Extract Microsoft Teams chat messages for a user-selected chat and time range using the evaluate_script tool with a four-step extraction workflow.
+description: Extract Microsoft Teams chat messages for a user-selected chat and time range using Chrome DevTools MCP, then run the evaluate_script extraction workflow.
 required_environment_variables: []
 optional_environmenta_variables: []
 ---
@@ -17,7 +17,51 @@ Primary goal:
 - for one user-approved time period
 - and return structured message context for follow-up tasks
 
-## 2) Access Strategy
+## 2) Required Prerequisite
+
+Before doing anything else, the agent must first refer to the [chrome-devtools-mcp-skill](../chrome-devtools-mcp-skill/SKILL.md) to understand how to interact with the browser and how to help the user install or enable the Chrome DevTools MCP server if it is not already available.
+
+If the chrome-devtools-mcp-skill is missing in the agent, the agent must guide the user on how to install that skill first so it can then refer to it. The install hint is that the skill is available publicly at `oabdullah3/agent-skills/skills/chrome-devtools-mcp-skill`.
+
+This skill does not use browser fallback tools. If Chrome DevTools MCP is unavailable, the agent must stop and guide the user to set it up.
+
+## 3) Access Strategy
+
+Use Chrome DevTools MCP only.
+
+The agent should work in this order before any evaluate-script extraction:
+
+1. List browser pages
+2. Navigate to Teams
+3. Snapshot the page to verify login and current chat selection
+4. Select/open the correct chat in Teams
+5. Then start the evaluate_script extraction flow
+
+Platform-specific tool names:
+
+- **Windows**: use the `mcp_chrome_devtools_win_*` tools
+- **macOS/Linux**: use the `mcp_chrome_devtools_local_*` tools
+
+### Preferred browser setup sequence
+
+1. Call `mcp_chrome_devtools_win_list_pages()` or `mcp_chrome_devtools_local_list_pages()` to see what tabs/windows are available.
+2. Call `mcp_chrome_devtools_win_navigate_page()` or `mcp_chrome_devtools_local_navigate_page()` to go to Teams if Teams is not already the active page.
+3. Call `mcp_chrome_devtools_win_snapshot()` or `mcp_chrome_devtools_local_snapshot()` to inspect whether the user is logged in and whether the desired chat is already selected.
+4. If the snapshot shows the user is not logged in, ask the user to log in and confirm when ready.
+5. Use the appropriate DevTools selection and interaction tools to open the correct Teams chat and wait for the chat pane to load.
+6. Only after the correct chat is open should the agent begin the evaluate_script workflow.
+
+### Tool-call intent
+
+The exact browser-call sequence the agent should ideally make is:
+
+1. `mcp_chrome_devtools_*_list_pages()`
+2. `mcp_chrome_devtools_*_navigate_page()`
+3. `mcp_chrome_devtools_*_snapshot()`
+4. `mcp_chrome_devtools_*_select_page()` and/or the appropriate click/navigation interaction to open the target Teams chat
+5. `evaluate_script` workflow below
+
+## 4) evaluate_script Workflow
 
 This skill uses the `evaluate_script` tool to run JavaScript functions that extract messages from Teams. The workflow requires the agent to call four functions in order:
 
@@ -26,14 +70,17 @@ This skill uses the `evaluate_script` tool to run JavaScript functions that extr
 3. **extractStatus** - Polls the extraction status until completion
 4. **extractResult** - Retrieves the final extracted messages
 
-## 3) Step-by-Step Workflow
+## 5) Step-by-Step Workflow
 
 ### Step 1: Navigate and Verify Context
 
-1. Ensure you have access to Teams in the current browser
-2. Navigate to Teams web app (or confirm Teams tab is already open)
-3. Click/open the target chat in the left pane and wait for chat content to load
-4. Confirm the correct chat is displayed
+1. Use Chrome DevTools MCP only.
+2. List available pages/tabs with the platform-appropriate `list_pages()` tool.
+3. Navigate to Teams with the platform-appropriate `navigate_page()` tool if needed.
+4. Take a snapshot with the platform-appropriate `snapshot()` tool to confirm login state and current chat selection.
+5. If Teams is not loaded or the desired chat is not selected, use the platform-appropriate page-selection and click/navigation tools to open the correct chat.
+6. Wait for the chat pane to finish loading before continuing.
+7. Confirm the correct chat is displayed.
 
 ### Step 2: Collect User Inputs
 
@@ -87,15 +134,15 @@ Before starting extraction, gather:
 })
 ```
 
-**Response:** This returns a result object with a `status` field. If `status === 'finished'`, skip to Step 5. If `status === 'running'`, proceed to Step 5 for polling.
+**Response:** This returns a result object with a `status` field. If `status === 'done'`, skip to Step 5. If `status === 'running'`, proceed to Step 5 for polling.
 
-### Step 5: Poll Extraction Status (Until Finished)
+### Step 5: Poll Extraction Status (Until Done)
 
 **When to do this:** After calling extractStart, poll periodically until extraction is complete.
 
-**When to skip:** If the extractStart response already shows `status === 'finished'`, skip directly to Step 6.
+**When to skip:** If the extractStart response already shows `status === 'done'`, skip directly to Step 6.
 
-**Action:** Call `evaluate_script` tool repeatedly with the exact contents of `scripts/extractStatus.js` until `status === 'finished'`.
+**Action:** Call `evaluate_script` tool repeatedly with the exact contents of `scripts/extractStatus.js` until `status === 'done'`.
 
 **extractStatus.js reference:**
 ```javascript
@@ -108,12 +155,12 @@ Before starting extraction, gather:
 **Polling strategy:** 
 - Call extractStatus
 - If `status === 'running'`, wait a reasonable interval (1-2 seconds) and poll again
-- If `status === 'finished'`, proceed to Step 6
-- Continue until finished
+- If `status === 'done'`, proceed to Step 6
+- Continue until done
 
-### Step 6: Retrieve Extracted Messages (When Status is Finished)
+### Step 6: Retrieve Extracted Messages (When Status is Done)
 
-**When to do this:** Only after extraction status shows `finished`.
+**When to do this:** Only after extraction status shows `done`.
 
 **Action:** Call `evaluate_script` tool with the exact contents of `scripts/extractResult.js`.
 
@@ -138,7 +185,7 @@ Before starting extraction, gather:
 ]
 ```
 
-## 4) evaluate_script Tool
+## 6) evaluate_script Tool
 
 **Tool Name (Platform-Specific):**
 - **Linux/macOS:** `mcp_chrome_devtools_local_evaluate_script()`
@@ -161,89 +208,41 @@ All parameters passed to the `evaluate_script` tool must follow this exact forma
 - NO semicolon after the closing parenthesis
 - Function name matches the source file (injectGlobals, extractStart, extractStatus, extractResult)
 
-## 5) Handling Multiple Extraction Tasks in Same Chat
+## 7) Handling Multiple Extraction Tasks in Same Chat
 
 Example workflow:
 
 1. User: "Extract messages from Chat A for the past 24 hours"
    - Call Step 3 (injectGlobals) once
    - Call Step 4 (extractStart with 'last24hours')
-   - Poll with Step 5 until finished
+  - Poll with Step 5 until done
    - Call Step 6 (extractResult)
 
 2. User: "Now show me messages from Chat A for the past month"
    - Skip Step 3 (variables already injected)
    - Call Step 4 (extractStart with 'last30days') - note the new time period parameter
-   - Poll with Step 5 until finished
+  - Poll with Step 5 until done
    - Call Step 6 (extractResult)
 
 3. User: "Extract from Chat B for the past week"
    - Call Step 3 (injectGlobals) again - new chat requires re-injection
    - Call Step 4 (extractStart with 'last7days')
-   - Poll with Step 5 until finished
+  - Poll with Step 5 until done
    - Call Step 6 (extractResult)
 
-## 6) Error Recovery
+## 8) Error Recovery
 
 If a subsequent step returns an error indicating undefined functions (e.g., `window.__extractStart is not defined`):
 - Re-run Step 3 (injectGlobals) to ensure all functions are properly declared
 - Then resume with Step 4
 
-```javascript
-window.__extractState = {status:'idle',startedAt:null,finishedAt:null,count:0,error:null};
-window.__extractResult = null;
-window.__extractStart = (rangeMode)=> {
-  if (window.__extractState.status === 'running') return window.__extractState;
-  window.__extractState = {
-    status: 'running',
-    startedAt: new Date().toISOString(),
-    finishedAt: null,
-    count: 0,
-    error: null
-  };
-  window.__extractPromise = window.extractTeamsChat(rangeMode)
-    .then(res => {
-      window.__extractResult = res || [];
-      window.__extractState.status = 'done';
-      window.__extractState.finishedAt = new Date().toISOString();
-      window.__extractState.count = window.__extractResult.length;
-    })
-    .catch(err => {
-      window.__extractState.status = 'error';
-      window.__extractState.error = String(err);
-    });
-  return window.__extractState;
-};
-window.__extractStatus = () => window.__extractState;
-```
+## 9) Output Handling
 
-## 7) Execution Flow
-
-Run extraction (non-blocking):
-```javascript
-window.__extractStart('last30days');
-```
-
-Polling contract:
-- poll `window.__extractStatus()` periodically (every 1-2 seconds recommended)
-- each poll returns immediately with current status
-- watch for status transitions: 'running' → 'done' or 'error'
-- the count field shows number of messages collected so far
-
-Completion logic:
-- when status is done, run `window.__extractResult()` to get the message array
-- when status is error, check `window.__extractState.error` for details
-- when status is 'running', continue polling (extraction is still in progress)
-
-Note: The extraction runs as a background promise in the page - MCP calls return immediately, avoiding timeouts.
-
-## 8) Output Handling
-
-`window.__extractResult()` returns the extracted message array ONLY when status is 'done'.
+`window.__extractResult()` returns the extracted message array only when status is done.
 Always check `window.__extractState.status` first:
-- If 'done': safe to call `window.__extractResult()` for results
-- If 'error': check `window.__extractState.error` for failure details
-- If 'running': extraction still in progress, continue polling
+- If `done`: safe to call `window.__extractResult()` for results
+- If `error`: check `window.__extractState.error` for failure details
+- If `running`: extraction still in progress, continue polling
 
 Expected item shape (from extractor):
 - `id`
@@ -261,7 +260,7 @@ When summarizing or answering follow-up questions:
 - cite uncertainty if extraction appears incomplete
 - avoid inferring messages outside extracted data
 
-## 9) Safety and Scope Rules
+## 10) Safety and Scope Rules
 
 Always:
 - get explicit user confirmation for target chat and date window
@@ -273,7 +272,7 @@ Never:
 - proceed when browser context is ambiguous
 - claim completion before `window.__extractStatus()` reports completion
 
-## 9.5) Reliability Notes
+## 11) Reliability Notes
 
 - This non-blocking pattern avoids MCP timeouts by separating:
   * MCP layer: instant wrapper injection and status polling (milliseconds)
