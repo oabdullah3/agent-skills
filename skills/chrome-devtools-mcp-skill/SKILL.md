@@ -55,6 +55,12 @@ Before starting, ensure you can answer the following (the agent will verify):
 - **Code Preview**: The agent will show readable JavaScript snippets before evaluating them in page context
 - **Sensitive Operations**: The agent will refuse operations involving password fields, credential use, or account changes unless you explicitly approve and accept the risk
 
+### Command Safety Policy
+
+- Avoid privileged shell commands in skill instructions because some agent/tooling environments block them.
+- Prefer user-space install methods (for example, `nvm` for Node.js) when possible.
+- If admin rights are required, instruct the user to run their organization's approved admin process outside the agent session instead of embedding elevated commands in this skill.
+
 ---
 
 ## Setup & Installation
@@ -241,11 +247,11 @@ The agent accesses these capabilities through MCP-registered tools. Exact tool n
 
 ### 1. List and Select a Page
 
-#### All Platforms
+#### Windows
 
 ```javascript
 // List all open pages
-pages = mcp_chrome_devtools_win_list_pages()  // or mcp_chrome_devtools_local_list_pages() for Linux/Mac
+pages = mcp_chrome_devtools_win_list_pages()
 
 // Output example:
 // [
@@ -255,6 +261,22 @@ pages = mcp_chrome_devtools_win_list_pages()  // or mcp_chrome_devtools_local_li
 
 // Select the Confluence page
 mcp_chrome_devtools_win_select_page(pageId=7)
+```
+
+#### Linux / macOS
+
+```javascript
+// List all open pages
+pages = mcp_chrome_devtools_local_list_pages()
+
+// Output example:
+// [
+//   { id: 1, title: "Gmail", url: "https://mail.google.com" },
+//   { id: 7, title: "Confluence", url: "https://mindlayer.atlassian.net/wiki/..." }
+// ]
+
+// Select the Confluence page
+mcp_chrome_devtools_local_select_page(pageId=7)
 ```
 
 ### 2. Take a Screenshot
@@ -279,12 +301,22 @@ mcp_chrome_devtools_local_take_screenshot(filePath="/tmp/page.png", fullPage=tru
 
 Useful for locating elements by UID for programmatic interaction.
 
-#### All Platforms
+#### Windows
 
 ```javascript
 // Generate verbose accessibility snapshot
 snapshot = mcp_chrome_devtools_win_take_snapshot(verbose=true)
-// or mcp_chrome_devtools_local_take_snapshot(verbose=true)
+
+// Output includes UIDs for each interactive element:
+// "uid_234": {"text": "Search", "role": "button", "selector": ".search-btn"}
+// Use returned UIDs with click(), press_key(), etc.
+```
+
+#### Linux / macOS
+
+```javascript
+// Generate verbose accessibility snapshot
+snapshot = mcp_chrome_devtools_local_take_snapshot(verbose=true)
 
 // Output includes UIDs for each interactive element:
 // "uid_234": {"text": "Search", "role": "button", "selector": ".search-btn"}
@@ -293,7 +325,7 @@ snapshot = mcp_chrome_devtools_win_take_snapshot(verbose=true)
 
 ### 4. Evaluate JavaScript in Page Context
 
-#### All Platforms
+#### Windows
 
 ```javascript
 // Get the page title
@@ -309,25 +341,48 @@ values = mcp_chrome_devtools_win_evaluate_js(
 )
 ```
 
+#### Linux / macOS
+
+```javascript
+// Get the page title
+title = mcp_chrome_devtools_local_evaluate_js(targetId, "document.title")
+
+// Count elements
+count = mcp_chrome_devtools_local_evaluate_js(targetId, "document.querySelectorAll('a').length")
+
+// Get form values
+values = mcp_chrome_devtools_local_evaluate_js(
+  targetId, 
+  "JSON.stringify({name: document.querySelector('input[name=name]').value, email: document.querySelector('input[name=email]').value})"
+)
+```
+
 ### 5. Navigate to a URL
 
-#### All Platforms
+#### Windows
 
 ```javascript
 mcp_chrome_devtools_win_navigate(targetId, "https://example.com")
 // Page begins loading; the agent will wait for navigation to complete
 ```
 
+#### Linux / macOS
+
+```javascript
+mcp_chrome_devtools_local_navigate(targetId, "https://example.com")
+// Page begins loading; the agent will wait for navigation to complete
+```
+
 ### 6. Click an Element
 
-#### All Platforms (using CSS selector)
+#### Windows (using CSS selector)
 
 ```javascript
 mcp_chrome_devtools_win_click(targetId, "button.submit")
 mcp_chrome_devtools_win_click(targetId, "a[href*='logout']")
 ```
 
-#### All Platforms (using UID from snapshot)
+#### Windows (using UID from snapshot)
 
 ```javascript
 // First, capture snapshot to get UIDs
@@ -338,9 +393,27 @@ snapshot = mcp_chrome_devtools_win_take_snapshot(verbose=true)
 mcp_chrome_devtools_win_click(targetId, uid="uid_456")
 ```
 
+#### Linux / macOS (using CSS selector)
+
+```javascript
+mcp_chrome_devtools_local_click(targetId, "button.submit")
+mcp_chrome_devtools_local_click(targetId, "a[href*='logout']")
+```
+
+#### Linux / macOS (using UID from snapshot)
+
+```javascript
+// First, capture snapshot to get UIDs
+snapshot = mcp_chrome_devtools_local_take_snapshot(verbose=true)
+// Find UID for "Submit" button in snapshot
+
+// Then click using UID
+mcp_chrome_devtools_local_click(targetId, uid="uid_456")
+```
+
 ### 7. Type into a Form Field
 
-#### All Platforms
+#### Windows
 
 ```javascript
 // Type into an input by CSS selector
@@ -348,12 +421,23 @@ mcp_chrome_devtools_win_type(targetId, "input[name='username']", "john_doe")
 mcp_chrome_devtools_win_type(targetId, "textarea#comments", "This is my feedback")
 
 // Type using UID
-mcp_chrome_devtools_win_type(targetId, uid="uid_789", "password123")
+mcp_chrome_devtools_win_type(targetId, uid="uid_789", "input text")
+```
+
+#### Linux / macOS
+
+```javascript
+// Type into an input by CSS selector
+mcp_chrome_devtools_local_type(targetId, "input[name='username']", "john_doe")
+mcp_chrome_devtools_local_type(targetId, "textarea#comments", "This is my feedback")
+
+// Type using UID
+mcp_chrome_devtools_local_type(targetId, uid="uid_789", "input text")
 ```
 
 ### 8. Start Performance Trace & Capture Results
 
-#### All Platforms
+#### Windows
 
 ```javascript
 // Start tracing
@@ -363,12 +447,25 @@ mcp_chrome_devtools_win_performance_start_trace(targetId)
 
 // Stop and retrieve trace
 trace_file = mcp_chrome_devtools_win_performance_stop_trace(targetId, filePath="/tmp/trace.json")
-// Output: trace file saved to /tmp/trace.json (adjust path for platform)
+// Output: trace file saved to /tmp/trace.json
+```
+
+#### Linux / macOS
+
+```javascript
+// Start tracing
+mcp_chrome_devtools_local_performance_start_trace(targetId)
+
+// ... perform actions in the page ...
+
+// Stop and retrieve trace
+trace_file = mcp_chrome_devtools_local_performance_stop_trace(targetId, filePath="/tmp/trace.json")
+// Output: trace file saved to /tmp/trace.json
 ```
 
 ### 9. Read Console Messages
 
-#### All Platforms
+#### Windows
 
 ```javascript
 // Enable console capture
@@ -381,9 +478,22 @@ messages = mcp_chrome_devtools_win_console_read(targetId)
 // Output: [{level: "log", text: "Page loaded"}, {level: "error", text: "Failed to fetch"}]
 ```
 
+#### Linux / macOS
+
+```javascript
+// Enable console capture
+mcp_chrome_devtools_local_console_enable(targetId)
+
+// ... perform actions ...
+
+// Read messages
+messages = mcp_chrome_devtools_local_console_read(targetId)
+// Output: [{level: "log", text: "Page loaded"}, {level: "error", text: "Failed to fetch"}]
+```
+
 ### 10. Get & Set Cookies
 
-#### All Platforms
+#### Windows
 
 ```javascript
 // Retrieve all cookies
@@ -391,6 +501,16 @@ cookies = mcp_chrome_devtools_win_get_cookies(targetId)
 
 // Set a cookie
 mcp_chrome_devtools_win_set_cookies(targetId, [{name: "session_id", value: "abc123"}])
+```
+
+#### Linux / macOS
+
+```javascript
+// Retrieve all cookies
+cookies = mcp_chrome_devtools_local_get_cookies(targetId)
+
+// Set a cookie
+mcp_chrome_devtools_local_set_cookies(targetId, [{name: "session_id", value: "abc123"}])
 ```
 
 ---
@@ -450,7 +570,8 @@ You can override these safeguards by explicitly instructing the agent and confir
 **Solution**:
 - Install Node.js and npm
   - **Windows**: Download from https://nodejs.org/ or use `choco install nodejs` (if using Chocolatey)
-  - **Linux**: `sudo apt-get install nodejs npm` (Ubuntu/Debian) or `sudo yum install nodejs npm` (RedHat/CentOS)
+  - **Linux (recommended, no elevated shell command in skill)**: install Node with `nvm` so npm/npx are available in user space
+  - **Linux (system package manager)**: install `nodejs` and `npm` with your distro package manager using your organization's approved admin process
   - **macOS**: `brew install node` (if using Homebrew)
 - Verify installation: `node --version && npm --version`
 - Then retry the server installation command from Phase 2
@@ -564,69 +685,126 @@ hermes mcp add chrome-devtools-mac \
 
 ### Common Tool Invocations
 
-**List pages**:
+**List pages (Windows)**:
 ```
 mcp_chrome_devtools_win_list_pages()
 ```
 
-**Select page** (use server name appropriate to your environment):
+**List pages (Linux/macOS)**:
+```
+mcp_chrome_devtools_local_list_pages()
+```
+
+**Select page (Windows)**:
 ```
 mcp_chrome_devtools_win_select_page(pageId=7)
-mcp_chrome_devtools_local_select_page(pageId=7)  # Linux/macOS
 ```
 
-**Take screenshot**:
+**Select page (Linux/macOS)**:
+```
+mcp_chrome_devtools_local_select_page(pageId=7)
+```
+
+**Take screenshot (Windows)**:
 ```
 mcp_chrome_devtools_win_take_screenshot(filePath="/tmp/page.png", fullPage=true)
-mcp_chrome_devtools_local_take_screenshot(filePath="/tmp/page.png", fullPage=true)  # Linux/macOS
 ```
 
-**Take accessibility snapshot**:
+**Take screenshot (Linux/macOS)**:
+```
+mcp_chrome_devtools_local_take_screenshot(filePath="/tmp/page.png", fullPage=true)
+```
+
+**Take accessibility snapshot (Windows)**:
 ```
 mcp_chrome_devtools_win_take_snapshot(verbose=true)
-mcp_chrome_devtools_local_take_snapshot(verbose=true)  # Linux/macOS
 ```
 
-**Navigate to URL**:
+**Take accessibility snapshot (Linux/macOS)**:
+```
+mcp_chrome_devtools_local_take_snapshot(verbose=true)
+```
+
+**Navigate to URL (Windows)**:
 ```
 mcp_chrome_devtools_win_navigate(targetId, "https://example.com")
-mcp_chrome_devtools_local_navigate(targetId, "https://example.com")  # Linux/macOS
 ```
 
-**Click element**:
+**Navigate to URL (Linux/macOS)**:
+```
+mcp_chrome_devtools_local_navigate(targetId, "https://example.com")
+```
+
+**Click element (Windows)**:
 ```
 mcp_chrome_devtools_win_click(targetId, "button.submit")
-mcp_chrome_devtools_win_click(targetId, uid="uid_456")  # Using UID
+mcp_chrome_devtools_win_click(targetId, uid="uid_456")
 ```
 
-**Type text**:
+**Click element (Linux/macOS)**:
+```
+mcp_chrome_devtools_local_click(targetId, "button.submit")
+mcp_chrome_devtools_local_click(targetId, uid="uid_456")
+```
+
+**Type text (Windows)**:
 ```
 mcp_chrome_devtools_win_type(targetId, "input#search", "search term")
 mcp_chrome_devtools_win_type(targetId, uid="uid_789", "input text")
 ```
 
-**Evaluate JavaScript**:
+**Type text (Linux/macOS)**:
+```
+mcp_chrome_devtools_local_type(targetId, "input#search", "search term")
+mcp_chrome_devtools_local_type(targetId, uid="uid_789", "input text")
+```
+
+**Evaluate JavaScript (Windows)**:
 ```
 mcp_chrome_devtools_win_evaluate_js(targetId, "document.title")
 mcp_chrome_devtools_win_evaluate_js(targetId, "JSON.stringify({count: document.querySelectorAll('a').length})")
 ```
 
-**Get cookies**:
+**Evaluate JavaScript (Linux/macOS)**:
+```
+mcp_chrome_devtools_local_evaluate_js(targetId, "document.title")
+mcp_chrome_devtools_local_evaluate_js(targetId, "JSON.stringify({count: document.querySelectorAll('a').length})")
+```
+
+**Get cookies (Windows)**:
 ```
 mcp_chrome_devtools_win_get_cookies(targetId)
 ```
 
-**Enable & read console**:
+**Get cookies (Linux/macOS)**:
+```
+mcp_chrome_devtools_local_get_cookies(targetId)
+```
+
+**Enable & read console (Windows)**:
 ```
 mcp_chrome_devtools_win_console_enable(targetId)
 mcp_chrome_devtools_win_console_read(targetId)
 ```
 
-**Start performance trace**:
+**Enable & read console (Linux/macOS)**:
+```
+mcp_chrome_devtools_local_console_enable(targetId)
+mcp_chrome_devtools_local_console_read(targetId)
+```
+
+**Start performance trace (Windows)**:
 ```
 mcp_chrome_devtools_win_performance_start_trace(targetId)
 # ... perform actions ...
 mcp_chrome_devtools_win_performance_stop_trace(targetId, filePath="/tmp/trace.json")
+```
+
+**Start performance trace (Linux/macOS)**:
+```
+mcp_chrome_devtools_local_performance_start_trace(targetId)
+# ... perform actions ...
+mcp_chrome_devtools_local_performance_stop_trace(targetId, filePath="/tmp/trace.json")
 ```
 
 ---
