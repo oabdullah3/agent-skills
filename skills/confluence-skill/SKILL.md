@@ -1,6 +1,6 @@
 ---
 name: confluence-skill
-version: 1.0.0
+version: 1.0.3
 description: Deterministic Confluence operations using mindlayer-confluence-cli only, with strict human approval gates for all mutations
 required_environment_variables: [CONFLUENCE_CLOUD_ID, CONFLUENCE_EMAIL, CONFLUENCE_API_TOKEN, CONFLUENCE_PIPE_DIR]
 optional_environmenta_variables: [CONFLUENCE_ENV_DIR, AGENT_NAME]
