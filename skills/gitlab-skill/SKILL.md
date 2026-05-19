@@ -73,6 +73,11 @@ mindlayer-gitlab-cli <command> --format json
 Startup check:
 - run `mindlayer-gitlab-cli --help`
 - if unavailable, ask the user to install the CLI and stop; do not install it yourself
+- You may tell the user that they may use the following command to install the CLI, but do not run it yourself:
+
+```bash
+echo @mindlayer:registry=https://gitlab.cantonese.science/api/v4/projects/711/packages/npm/ > .npmrc && npm i -g @mindlayer/mindlayer-gitlab-cli@latest
+```
 
 Credential behavior:
 - trust CLI credential resolution

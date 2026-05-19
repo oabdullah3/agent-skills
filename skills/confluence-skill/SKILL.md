@@ -34,6 +34,11 @@ Before handling Confluence requests:
 4. Verify Confluence routing trigger exists in `AGENT.md`; if missing, ask approval before editing.
 5. Confirm `mindlayer-confluence-cli` is available by running `mindlayer-confluence-cli --help`.
 6. If the CLI is not found or fails to run, ask the user to install it and stop. Do not install it yourself.
+7. You may tell the user that they may use the following command to install the CLI, but do not run it yourself:
+
+```bash
+echo @mindlayer:registry=https://gitlab.cantonese.science/api/v4/projects/700/packages/npm/ > .npmrc && npm i -g @mindlayer/mindlayer-confluence-cli@latest
+``` 
 
 ## 3) Invocation and Environment
 

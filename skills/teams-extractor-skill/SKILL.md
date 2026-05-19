@@ -1,7 +1,7 @@
 ---
 name: teams-extractor-skill
 version: 1.0.0
-description: Extract Microsoft Teams chat messages for a user-selected chat and time range using Chrome DevTools MCP, then run the mcp_chrome_devtools_win_evaluate_js() extraction workflow.
+description: Extract Microsoft Teams chat messages for a user-selected chat and time range using Chrome DevTools MCP, then run the mcp_chrome_devtools_win_evaluate_script() extraction workflow.
 ---
 
 # Teams Chat Extractor Skill
@@ -33,7 +33,7 @@ The agent should work in this order before any evaluate-script extraction:
 2. Navigate to Teams
 3. Snapshot the page to verify login and current chat selection
 4. Select/open the correct chat in Teams
-5. Then start the mcp_chrome_devtools_win_evaluate_js() extraction flow
+5. Then start the mcp_chrome_devtools_win_evaluate_script() extraction flow
 
 Platform-specific tool names:
 
@@ -47,7 +47,7 @@ Platform-specific tool names:
 3. Call `mcp_chrome_devtools_win_take_snapshot()` or `mcp_chrome_devtools_local_take_snapshot()` to inspect whether the user is logged in and whether the desired chat is already selected.
 4. If the snapshot shows the user is not logged in, ask the user to log in and confirm when ready.
 5. Use the mcp_chrome_devtools_win_click() to select the relevant chat if it is not already selected. Clickable icons to acess chat are typically displayed on the left vertical bar.
-6. Only after the correct chat is open should the agent begin the mcp_chrome_devtools_win_evaluate_js() workflow.
+6. Only after the correct chat is open should the agent begin the mcp_chrome_devtools_win_evaluate_script() workflow.
 
 ### Tool-call intent
 
@@ -57,11 +57,11 @@ The exact browser-call sequence the agent should ideally make is:
 2. `mcp_chrome_devtools_*_navigate_page()`
 3. `mcp_chrome_devtools_*_snapshot()`
 4. `mcp_chrome_devtools_*_select_page()` and/or the appropriate click/navigation interaction to open the target Teams chat
-5. `mcp_chrome_devtools_win_evaluate_js()` workflow below
+5. `mcp_chrome_devtools_win_evaluate_script()` workflow below
 
-## 4) mcp_chrome_devtools_win_evaluate_js() Workflow
+## 4) mcp_chrome_devtools_win_evaluate_script() Workflow
 
-This skill uses the `mcp_chrome_devtools_win_evaluate_js()` tool to run JavaScript functions that extract messages from Teams. The workflow requires the agent to call four functions in order:
+This skill uses the `mcp_chrome_devtools_win_evaluate_script()` tool to run JavaScript functions that extract messages from Teams. The workflow requires the agent to call four functions in order:
 
 1. **injectGlobals** - Injects helper functions into the page (done once per chat or when variables need re-declaring)
 2. **extractStart** - Initiates the extraction with a specified time period
@@ -97,7 +97,7 @@ Before starting extraction, gather:
 
 **When to do this:** Only when first navigating to a new chat, or if a later step returns an error about undefined functions.
 
-**Action:** Call `mcp_chrome_devtools_win_evaluate_js()` tool with the exact contents of `scripts/injectGlobals.js` as the parameter.
+**Action:** Call `mcp_chrome_devtools_win_evaluate_script()` tool with the exact contents of `scripts/injectGlobals.js` as the parameter.
 
 **Note:** Do NOT include this in subsequent extraction requests for the same chat within the same page session, as the injected functions persist in the window scope.
 
@@ -112,7 +112,7 @@ Before starting extraction, gather:
 
 **When to do this:** For each extraction request, even if it's a different time period in the same chat.
 
-**Action:** Call `mcp_chrome_devtools_win_evaluate_js()` tool with the contents of `scripts/extractStart.js`, **with the time period parameter modified** based on user intent.
+**Action:** Call `mcp_chrome_devtools_win_evaluate_script()` tool with the contents of `scripts/extractStart.js`, **with the time period parameter modified** based on user intent.
 
 **Critical:** You MUST modify the `'NEED_TO_REPLACE_THIS_VALUE_WITH_DESIRED_TIME_PERIOD'` placeholder with the actual time period value (e.g., `'last24hours'`).
 
@@ -140,7 +140,7 @@ Before starting extraction, gather:
 
 **When to skip:** If the extractStart response already shows `status === 'done'`, skip directly to Step 6.
 
-**Action:** Call `mcp_chrome_devtools_win_evaluate_js()` tool repeatedly with the exact contents of `scripts/extractStatus.js` until `status === 'done'`.
+**Action:** Call `mcp_chrome_devtools_win_evaluate_script()` tool repeatedly with the exact contents of `scripts/extractStatus.js` until `status === 'done'`.
 
 **extractStatus.js reference:**
 ```javascript
@@ -160,7 +160,7 @@ Before starting extraction, gather:
 
 **When to do this:** Only after extraction status shows `done`.
 
-**Action:** Call `mcp_chrome_devtools_win_evaluate_js()` tool with the exact contents of `scripts/extractResult.js`.
+**Action:** Call `mcp_chrome_devtools_win_evaluate_script()` tool with the exact contents of `scripts/extractResult.js`.
 
 **extractResult.js reference:**
 ```javascript
@@ -183,17 +183,17 @@ Before starting extraction, gather:
 ]
 ```
 
-## 6) mcp_chrome_devtools_win_evaluate_js() Tool
+## 6) mcp_chrome_devtools_win_evaluate_script() Tool
 
 **Tool Name (Platform-Specific):**
-- **Linux/macOS:** `mcp_chrome_devtools_local_evaluate_js()`
-- **Windows:** `mcp_chrome_devtools_win_evaluate_js()`
+- **Linux/macOS:** `mcp_chrome_devtools_local_evaluate_script()`
+- **Windows:** `mcp_chrome_devtools_win_evaluate_script()`
 
-When this document refers to "mcp_chrome_devtools_win_evaluate_js()", use the appropriate tool name above based on the operating system.
+When this document refers to "mcp_chrome_devtools_win_evaluate_script()", use the appropriate tool name above based on the operating system.
 
-### mcp_chrome_devtools_win_evaluate_js() Parameter Format
+### mcp_chrome_devtools_win_evaluate_script() Parameter Format
 
-All parameters passed to the `mcp_chrome_devtools_win_evaluate_js()` tool must follow this exact format:
+All parameters passed to the `mcp_chrome_devtools_win_evaluate_script()` tool must follow this exact format:
 
 ```
 (function functionName(){
@@ -277,7 +277,7 @@ Never:
   * Page layer: background extraction promise (can run minutes)
 - Always verify `window.extractTeamsChat` exists before injection:
   ```javascript
-  mcp_chrome_devtools_win_evaluate_js()({function: "() => !!window.extractTeamsChat"})
+  mcp_chrome_devtools_win_evaluate_script()({function: "() => !!window.extractTeamsChat"})
   ```
 - If `extractTeamsChat` becomes undefined (due to page reload/navigation), re-inject the wrapper and restart
 - For very long extractions (>15 mins), consider chunking into weekly ranges and merging results

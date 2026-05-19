@@ -36,6 +36,11 @@ mindlayer-jira-cli --help
 
 2. If mindlayer-jira-cli is missing, ask the user to install it and stop. Do not install it yourself.
 3. If verification fails, report exact error and stop for human direction.
+4. You may tell the user that they may use the following command to install the CLI, but do not run it yourself:
+
+```bash
+echo @mindlayer:registry=https://gitlab.cantonese.science/api/v4/projects/699/packages/npm/ > .npmrc && npm i -g @mindlayer/mindlayer-jira-cli@latest
+```
 
 ## 3) Invocation and Environment
 

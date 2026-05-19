@@ -208,8 +208,8 @@ The agent accesses these capabilities through MCP-registered tools. Exact tool n
 
 ### JavaScript Evaluation
 
-- **`evaluate_js(targetId, expression)`**: Execute JavaScript in page context and return result
-- Example: `evaluate_js(targetId, "document.title")` returns the page title
+- **`evaluate_script(targetId, expression)`**: Execute JavaScript in page context and return result
+- Example: `evaluate_script(targetId, "document.title")` returns the page title
 
 ### Network & Cookies
 
@@ -329,13 +329,13 @@ snapshot = mcp_chrome_devtools_local_take_snapshot(verbose=true)
 
 ```javascript
 // Get the page title
-title = mcp_chrome_devtools_win_evaluate_js(targetId, "document.title")
+title = mcp_chrome_devtools_win_evaluate_script(targetId, "document.title")
 
 // Count elements
-count = mcp_chrome_devtools_win_evaluate_js(targetId, "document.querySelectorAll('a').length")
+count = mcp_chrome_devtools_win_evaluate_script(targetId, "document.querySelectorAll('a').length")
 
 // Get form values
-values = mcp_chrome_devtools_win_evaluate_js(
+values = mcp_chrome_devtools_win_evaluate_script(
   targetId, 
   "JSON.stringify({name: document.querySelector('input[name=name]').value, email: document.querySelector('input[name=email]').value})"
 )
@@ -345,13 +345,13 @@ values = mcp_chrome_devtools_win_evaluate_js(
 
 ```javascript
 // Get the page title
-title = mcp_chrome_devtools_local_evaluate_js(targetId, "document.title")
+title = mcp_chrome_devtools_local_evaluate_script(targetId, "document.title")
 
 // Count elements
-count = mcp_chrome_devtools_local_evaluate_js(targetId, "document.querySelectorAll('a').length")
+count = mcp_chrome_devtools_local_evaluate_script(targetId, "document.querySelectorAll('a').length")
 
 // Get form values
-values = mcp_chrome_devtools_local_evaluate_js(
+values = mcp_chrome_devtools_local_evaluate_script(
   targetId, 
   "JSON.stringify({name: document.querySelector('input[name=name]').value, email: document.querySelector('input[name=email]').value})"
 )
@@ -619,7 +619,7 @@ You can override these safeguards by explicitly instructing the agent and confir
 
 ### Issue: JavaScript Evaluation Returns Undefined
 
-**Symptoms**: `evaluate_js(targetId, expression)` returns `undefined` or unexpected values.
+**Symptoms**: `evaluate_script(targetId, expression)` returns `undefined` or unexpected values.
 
 **Solution**:
 1. Verify the expression is valid JavaScript: `document.title`, `document.querySelectorAll('a').length`
@@ -761,14 +761,14 @@ mcp_chrome_devtools_local_type(targetId, uid="uid_789", "input text")
 
 **Evaluate JavaScript (Windows)**:
 ```
-mcp_chrome_devtools_win_evaluate_js(targetId, "document.title")
-mcp_chrome_devtools_win_evaluate_js(targetId, "JSON.stringify({count: document.querySelectorAll('a').length})")
+mcp_chrome_devtools_win_evaluate_script(targetId, "document.title")
+mcp_chrome_devtools_win_evaluate_script(targetId, "JSON.stringify({count: document.querySelectorAll('a').length})")
 ```
 
 **Evaluate JavaScript (Linux/macOS)**:
 ```
-mcp_chrome_devtools_local_evaluate_js(targetId, "document.title")
-mcp_chrome_devtools_local_evaluate_js(targetId, "JSON.stringify({count: document.querySelectorAll('a').length})")
+mcp_chrome_devtools_local_evaluate_script(targetId, "document.title")
+mcp_chrome_devtools_local_evaluate_script(targetId, "JSON.stringify({count: document.querySelectorAll('a').length})")
 ```
 
 **Get cookies (Windows)**:
