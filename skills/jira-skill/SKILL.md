@@ -1,6 +1,6 @@
 ---
 name: jira-skill
-version: 1.0.0
+version: 1.0.1
 description: Deterministic Jira operations using mindlayer-jira-cli with explicit human approval gates for all create/edit mutations.
 required_environment_variables: [JIRA_CLOUD_ID, JIRA_EMAIL, JIRA_API_TOKEN]
 optional_environmenta_variables: [JIRA_ENV_DIR, AGENT_NAME]
