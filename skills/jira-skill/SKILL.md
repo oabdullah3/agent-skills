@@ -85,8 +85,7 @@ Required sequence:
 1. Run `--operation-mode prepare`.
 2. Run `--operation-mode show-changes` and present diff/warnings.
 3. Ask: Do you approve these Jira updates?
-4. Only after explicit approval, run `--operation-mode finalize` with `--preview-ref` and `--human-approval-obtained`.
-5. Optionally pass `--idempotency-key` for replay protection.
+4. Only after explicit approval, run `--operation-mode finalize` with `--human-approval-obtained`.
 
 Approval matrix:
 - create: prepare -> show-changes -> finalize.
@@ -101,9 +100,9 @@ Canonical command families:
 - mindlayer-jira-cli project search --query <text> [--operation-mode <search|resolve>] [--with-components] [--max-results <n>] [--start-at <n>] [--explain] [--format json]
 - mindlayer-jira-cli issue search --jql <query> [--operation-mode <search|resolve>] [--start-at <n>] [--max-results <n>] [--explain] [--format json]
 - mindlayer-jira-cli issue search --issue-key <key> [--operation-mode <search|resolve>] [--with-comments [max,start]] [--with-transitions [max,start]] [--with-assignable [max,start]] [--with-worklogs [max,start]] [--with-attachments [max,start]] [--explain] [--format json]
-- mindlayer-jira-cli issue create --summary <text> (choose exactly one: --project-id | --project-key | --project-query) (choose exactly one: --issue-type-id | --issue-type-name) [--incident-report|--bug-triage|--change-request|--release-blocker] [--operation-mode <prepare|show-changes|finalize|resolve>] [--preview-ref] [--idempotency-key] [--skip-permission-preflight] [--priority-id] [--component-ids] [--parent-key|--parent-id] [--environment-value] [--environment-field-id] [--story-points] [--story-points-field-id] [--original-estimate] [action flags] [--format json]
-- mindlayer-jira-cli issue edit add --issue <key> [--operation-mode <prepare|show-changes|finalize|resolve>] [--preview-ref] [--idempotency-key] [--skip-permission-preflight] [--comment-body] [--worklog-time-spent] [--attach-file] [--labels] [--link-type/--link-issue] [--get-details] [--format json]
-- mindlayer-jira-cli issue edit replace --issue <key> [--operation-mode <prepare|show-changes|finalize|resolve>] [--preview-ref] [--idempotency-key] [--skip-permission-preflight] [--summary] [--description] [--start-date] [--due-date] [--priority-id] [--component-ids] [--parent-key|--parent-id] [--environment-value] [--environment-field-id] [--story-points] [--story-points-field-id] [--original-estimate] [--acceptance-value] [--patch-mode <replace|append|prepend>] [--patch-field <description|acceptance|both|all>] [--transition-id] [--assignee-id] [--labels-add] [--labels-remove] [--get-details] [--format json]
+- mindlayer-jira-cli issue create --summary <text> (choose exactly one: --project-id | --project-key | --project-query) (choose exactly one: --issue-type-id | --issue-type-name) [--incident-report|--bug-triage|--change-request|--release-blocker] [--operation-mode <prepare|show-changes|finalize|resolve>] [--priority-id] [--component-ids] [--parent-key|--parent-id] [--environment-value] [--environment-field-id] [--story-points] [--story-points-field-id] [--original-estimate] [action flags] [--format json]
+- mindlayer-jira-cli issue edit add --issue <key> [--operation-mode <prepare|show-changes|finalize|resolve>] [--comment-body] [--worklog-time-spent] [--attach-file] [--labels] [--link-type/--link-issue] [--get-details] [--format json]
+- mindlayer-jira-cli issue edit replace --issue <key> [--operation-mode <prepare|show-changes|finalize|resolve>] [--summary] [--description] [--start-date] [--due-date] [--priority-id] [--component-ids] [--parent-key|--parent-id] [--environment-value] [--environment-field-id] [--story-points] [--story-points-field-id] [--original-estimate] [--acceptance-value] [--patch-mode <replace|append|prepend>] [--patch-field <description|acceptance|both|all>] [--transition-id] [--assignee-id] [--labels-add] [--labels-remove] [--get-details] [--format json]
 - mindlayer-jira-cli me [--assigned] [--reported] [--watched] [--recent] [--start-at <n>] [--max-results <n>] [--with-comments [max,start]] [--with-transitions [max,start]] [--with-assignable [max,start]] [--with-worklogs [max,start]] [--with-attachments [max,start]] [--explain] [--format json]
 
 Legacy route policy (non-canonical):
@@ -117,12 +116,11 @@ Legacy route policy (non-canonical):
 	- issue-type-list -> project search and inspect issueTypes
 
 Critical flags that must stay in docs/help alignment:
---human-approval-obtained, --project-id, --project-key, --project-query, --issue-type-id, --issue-type-name, --issue-key, --jql, --start-at, --max-results, --with-comments, --with-transitions, --with-assignable, --with-worklogs, --with-attachments, --comment-body, --worklog-time-spent, --attach-file, --labels, --labels-add, --labels-remove, --transition-id, --assignee-id, --priority-id, --component-ids, --parent-key, --parent-id, --environment-value, --environment-field-id, --story-points, --story-points-field-id, --original-estimate, --operation-mode, --preview-ref, --idempotency-key, --skip-permission-preflight, --incident-report, --bug-triage, --change-request, --release-blocker, --patch-mode, --patch-field, --env-dir, --format, --explain.
+--human-approval-obtained, --project-id, --project-key, --project-query, --issue-type-id, --issue-type-name, --issue-key, --jql, --start-at, --max-results, --with-comments, --with-transitions, --with-assignable, --with-worklogs, --with-attachments, --comment-body, --worklog-time-spent, --attach-file, --labels, --labels-add, --labels-remove, --transition-id, --assignee-id, --priority-id, --component-ids, --parent-key, --parent-id, --environment-value, --environment-field-id, --story-points, --story-points-field-id, --original-estimate, --operation-mode, --incident-report, --bug-triage, --change-request, --release-blocker, --patch-mode, --patch-field, --env-dir, --format, --explain.
 
 Permission preflight contract:
 - Finalize runs permission preflight by default and blocks on missing capability categories.
 - Treat preflight failures as blocking and actionable; do not continue finalize automatically.
-- Only use `--skip-permission-preflight` when the human explicitly approves override.
 - show-changes returns `preflightIntent` summary for required capability checks.
 
 Pagination contract:
@@ -184,21 +182,21 @@ Create preview and execute (multi-action example):
 ```bash
 mindlayer-jira-cli issue create --operation-mode prepare --summary "Investigate login regression" --project-id 10024 --issue-type-name "Task" --comment-body "triage started" --labels "urgent,triage" --worklog-time-spent "15m" --format json
 mindlayer-jira-cli issue create --operation-mode show-changes --summary "Investigate login regression" --project-id 10024 --issue-type-name "Task" --comment-body "triage started" --labels "urgent,triage" --worklog-time-spent "15m" --format json
-mindlayer-jira-cli issue create --operation-mode finalize --preview-ref "<ref>" --idempotency-key "create-<key>" --summary "Investigate login regression" --project-id 10024 --issue-type-name "Task" --comment-body "triage started" --labels "urgent,triage" --worklog-time-spent "15m" --format json --human-approval-obtained
+mindlayer-jira-cli issue create --operation-mode finalize --summary "Investigate login regression" --project-id 10024 --issue-type-name "Task" --comment-body "triage started" --labels "urgent,triage" --worklog-time-spent "15m" --format json --human-approval-obtained
 ```
 
 Edit add preview and execute:
 
 ```bash
 mindlayer-jira-cli issue edit add --operation-mode show-changes --issue ABC-123 --comment-body "Progress update" --labels "next-step" --format json
-mindlayer-jira-cli issue edit add --operation-mode finalize --preview-ref "<ref>" --idempotency-key "add-<key>" --issue ABC-123 --comment-body "Progress update" --labels "next-step" --format json --human-approval-obtained
+mindlayer-jira-cli issue edit add --operation-mode finalize --issue ABC-123 --comment-body "Progress update" --labels "next-step" --format json --human-approval-obtained
 ```
 
 Edit replace preview and execute:
 
 ```bash
 mindlayer-jira-cli issue edit replace --operation-mode show-changes --issue ABC-123 --summary "Clarified acceptance" --description "Full replacement text" --labels-add "validated" --labels-remove "stale" --format json
-mindlayer-jira-cli issue edit replace --operation-mode finalize --preview-ref "<ref>" --idempotency-key "replace-<key>" --issue ABC-123 --summary "Clarified acceptance" --description "Full replacement text" --labels-add "validated" --labels-remove "stale" --format json --human-approval-obtained
+mindlayer-jira-cli issue edit replace --operation-mode finalize --issue ABC-123 --summary "Clarified acceptance" --description "Full replacement text" --labels-add "validated" --labels-remove "stale" --format json --human-approval-obtained
 ```
 
 Giant reference templates (all major flags, with mutually-exclusive groups shown inline):
@@ -247,9 +245,6 @@ mindlayer-jira-cli issue create \
 	# OR: --issue-type-id 10001 \
 	--incident-report \
 	# OR: --bug-triage | --change-request | --release-blocker \
-	--preview-ref "<ref-from-show-changes-for-finalize-only>" \
-	--idempotency-key "create-<key>" \
-	--skip-permission-preflight \
 	--comment-body "triage started" \
 	--labels "urgent,triage" \
 	--worklog-time-spent "15m" \
@@ -282,9 +277,6 @@ mindlayer-jira-cli issue edit add \
 	--operation-mode show-changes \
 	# OR: --operation-mode prepare | --operation-mode finalize | --operation-mode resolve \
 	--issue ABC-123 \
-	--preview-ref "<ref-from-show-changes-for-finalize-only>" \
-	--idempotency-key "add-<key>" \
-	--skip-permission-preflight \
 	--comment-body "Progress update" \
 	--labels "next-step,triaged" \
 	--worklog-time-spent "20m" \
@@ -304,9 +296,6 @@ mindlayer-jira-cli issue edit replace \
 	--operation-mode show-changes \
 	# OR: --operation-mode prepare | --operation-mode finalize | --operation-mode resolve \
 	--issue ABC-123 \
-	--preview-ref "<ref-from-show-changes-for-finalize-only>" \
-	--idempotency-key "replace-<key>" \
-	--skip-permission-preflight \
 	--summary "Clarified acceptance" \
 	--description "Full replacement text" \
 	--patch-mode append \
