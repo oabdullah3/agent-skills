@@ -14,12 +14,14 @@ Use `mindlayer-confluence-cli` commands only. Do not build direct API requests.
 ## 1) Non-Negotiable Safety Rules
 
 Never:
+
 - read or print credential values.
 - call Confluence with raw `curl` or custom HTTP scripts.
 - skip `prepare -> show-changes -> approval -> finalize` for mutating workflows.
 - pass `--human-approval-obtained` without explicit user approval in this chat.
 
 Always:
+
 - use `mindlayer-confluence-cli` only.
 - prefer `--format json`.
 - resolve exact targets before mutating.
@@ -28,6 +30,7 @@ Always:
 ## 2) Startup Protocol
 
 Before handling Confluence requests:
+
 1. Tell user you are validating config and approval gates.
 2. Confirm you will not read or print credentials.
 3. If credentials are missing, ask for an `--env-dir` path so the CLI can load `<env-dir>/.env`.
@@ -38,7 +41,7 @@ Before handling Confluence requests:
 
 ```bash
 echo @mindlayer:registry=https://gitlab.cantonese.science/api/v4/projects/700/packages/npm/ > .npmrc && npm i -g @mindlayer/mindlayer-confluence-cli@latest
-``` 
+```
 
 ## 3) Invocation and Environment
 
@@ -49,6 +52,7 @@ mindlayer-confluence-cli <command> --format json
 ```
 
 Notes:
+
 - First try to resolve credentials from process env.
 - If credentials are missing, try to infer a likely `--env-dir` from known project locations.
 - If that fails, ask the user for the `--env-dir` path and remind them to populate the `.env` file with the required variables.
@@ -57,11 +61,13 @@ Notes:
 ## 4) Approval Contract
 
 Mutating commands:
+
 - `page create`
 - `page edit content`
 - `page edit details`
 
 Required sequence:
+
 1. `prepare`
 2. edit/plan content
 3. `show-changes` (create/content workflows)
@@ -69,16 +75,19 @@ Required sequence:
 5. `finalize --human-approval-obtained`
 
 Required flags:
+
 - `page create --operation-mode show-changes` requires `--pipe-changed`.
 - `page edit content --operation-mode show-changes` requires `--pipe-changed`.
 - all mutating finalize calls require `--human-approval-obtained`.
 
 Legacy alias note:
+
 - `--pipe-file-written-to` may still be accepted for backward compatibility in content show-changes, but agents should use `--pipe-changed`.
 
 ## 5) Command Surface (Canonical)
 
 Top-level commands:
+
 - `space search`
 - `page search`
 - `page create`
@@ -87,21 +96,25 @@ Top-level commands:
 - `me`
 
 Global flags:
+
 - `--format json|text`
 - `--env-dir <path>`
 
 ### 5.1 `page search` flags and pagination
 
 Selectors (choose one primary selector):
+
 - `--page-id`
 - `--query`
 - `--title`
 - `--cql`
 
 Search scope note:
+
 - `--space-key` is optional narrowing, not mandatory. Query/title/CQL can search broadly when no space is provided.
 
 Structured filters:
+
 - `--space-key` (strongly recommended to narrow results; required with `--ancestor-path`)
 - `--label` (repeatable, AND semantics)
 - `--ancestor-id` or `--ancestor-path` (use one)
@@ -109,6 +122,7 @@ Structured filters:
 - `--updated-from`, `--updated-to`
 
 Enrichment flags:
+
 - `--with-content` with optional `--body-format` (`storage|atlas_doc_format|view`)
 - `--with-labels [limit,start]`
 - `--with-version-history [limit,start]` (currently returns `history.lastUpdated` summary)
@@ -119,14 +133,17 @@ Enrichment flags:
 - `--with-restrictions`
 
 Pagination rules:
+
 - top-level page result pagination uses `--limit` and `--start`.
 - subresource pagination uses tuple syntax `[limit,start]` on each `--with-*` flag.
 
 Rule:
+
 - `--cql` is a full override of structured filter composition.
 - raw CQL is supported and passed through via `--cql`.
 
 Result-shape behavior:
+
 - if search returns exactly one page and it has an id, command auto-augments that page with requested `--with-*` details.
 - if search returns multiple pages, detail flags are ignored and command asks to narrow with `--page-id`.
 - if `--page-id` is provided, detail flags are applied directly to that exact page.
@@ -135,6 +152,7 @@ Result-shape behavior:
 ### 5.2 `page create` template presets
 
 Built-in template preset selector flags:
+
 - `--incident-report`
 - `--meeting-notes`
 - `--gap-analysis`
@@ -144,6 +162,7 @@ Built-in template preset selector flags:
 - `--release-notes`
 
 Preset behavior:
+
 - These flags select deterministic template source + optional preset destination.
 - Prepare preloads `.confluence-pipe` with template content from deterministic preset source.
 - Destination resolution is deterministic with this precedence:
@@ -153,6 +172,7 @@ Preset behavior:
   4. if no preset destination exists: fallback to current user's personal space root.
 
 Incident report default destination:
+
 - Space key: `ECBP`
 - Path segments:
   - `03. Operations & BAU`
@@ -160,46 +180,55 @@ Incident report default destination:
   - `6 - Incident Management / Troubleshooting`
 
 Preset destination override note:
+
 - Incident report destination is a default, not hardcoded-only behavior.
 - You can override by passing `--space-key`/`--space-name`, and optionally `--page-location`.
 
 Preset registry:
+
 - `src/locationPresets.json`
 
 ### 5.3 `page edit content` patch behavior
 
 Default mode is patch-first:
+
 - CLI auto-detects changed heading sections.
 - Untouched sections preserve original ADF subtree.
 - unchanged markdown preserves original ADF.
 - if safe heading mapping cannot be inferred for changed content, CLI falls back to full rewrite with warning metadata.
 
 Explicit scoped patch flags:
+
 - `--patch-scope heading|section`
 - `--target-heading` (repeatable)
 - `--patch-mode replace|append|prepend`
 
 Override flag:
+
 - `--full-rewrite` to force whole-document rewrite.
 
 Mutual exclusion:
+
 - do not combine `--full-rewrite` with scoped patch flags.
 
 ### 5.4 `page edit details`
 
 Supported detail updates:
+
 - `--new-title` (title-only rename)
 - `--comment`
 - `--label`
 - `--attachment-path`
 
 Two-turn workflow:
+
 - `prepare`
 - `finalize --human-approval-obtained`
 
 ### 5.5 Implicit workflows embedded in commands
 
 Use these built-in capabilities first before adding extra discovery steps:
+
 - `page edit content` supports lookup without `--page-id` via `--page-title` / `--query` / `--cql` + optional space narrowing.
 - `page edit content --operation-mode resolve` returns exact page resolution or ambiguity candidates.
 - `page edit content` and `page create` auto-promote `prepare -> show-changes` when `--pipe-changed` is present.
@@ -212,19 +241,23 @@ Use these built-in capabilities first before adding extra discovery steps:
 - `space search` ignores detail flags on multiple query matches and asks to narrow with `--space-key`.
 
 Resolve ambiguity rule:
+
 - `resolve` does not auto-select from multiple matches; it returns candidates and requires explicit rerun with exact `--page-id`.
 
 ### 5.6 Detail pagination semantics
 
 Use two pagination layers correctly:
+
 - top-level search lists use `--limit` + `--start`.
 - detail expansions use `[limit,start]` tuple syntax on specific `--with-*` flags.
 
 Important behavior:
+
 - Confluence expand endpoints do not honor tuple pagination server-side for many detail expansions.
 - CLI fetches expanded arrays and applies tuple pagination client-side.
 
 Examples:
+
 - `page search --page-id 123 --with-comments [10,20]`
 - `space search --space-key CH1 --with-permissions [10,0]`
 
@@ -250,6 +283,7 @@ Examples:
 - Legacy `--pipe-file-written-to` may parse, but canonical show-changes signal is `--pipe-changed`.
 
 Explicit non-goals (unsupported by this CLI):
+
 - delete page/comment/attachment
 - move existing page between parents/spaces
 - remove/replace labels
@@ -259,6 +293,7 @@ Explicit non-goals (unsupported by this CLI):
 ## 6) Deterministic Workflows
 
 Execution guidance for one-shot success:
+
 - If target is ambiguous, run discovery first (`space search` / `page search`) and then continue with exact IDs/space keys.
 - For all mutating flows, enforce stage order and required stage flags exactly.
 - Before finalize, always provide natural-language summary of intended changes and obtain explicit approval.
@@ -359,6 +394,7 @@ For `page edit content`, conversion can be ADF -> Markdown -> ADF.
 If unsupported/risky node types are present, include explicit warning before approval.
 
 Required warning meaning:
+
 - this page contains content not explicitly supported for safe roundtrip and edits may break content.
 
 Do not hide this risk.
@@ -366,6 +402,7 @@ Do not hide this risk.
 ## 8) Automatic Audit Stamp
 
 On successful finalize for:
+
 - `page create`
 - `page edit content`
 - `page edit details`
@@ -376,11 +413,13 @@ If audit-stamp creation fails but mutation succeeds, report mutation success and
 ## 9) Unsupported Feature Policy
 
 If a feature is not implemented:
+
 - clearly say it is not implemented by this CLI.
 - offer supported alternatives only.
 - do not attempt raw API fallback.
 
 Fallback response pattern:
+
 - `This is not currently supported by mindlayer-confluence-cli. I can do <supported option A> or <supported option B>.`
 
 ## 10) Error Handling Quick Rules
@@ -394,6 +433,7 @@ Fallback response pattern:
 ## 11) Mutation Checklist
 
 Before any finalize, ensure all are true:
+
 - exact target resolved
 - prepare completed
 - show-changes reviewed (when required)

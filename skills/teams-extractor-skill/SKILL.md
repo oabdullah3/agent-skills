@@ -11,6 +11,7 @@ Use this skill to extract message history from a specific Microsoft Teams chat a
 ## 1) Mission
 
 Primary goal:
+
 - extract messages from one user-approved Teams chat
 - for one user-approved time period
 - and return structured message context for follow-up tasks
@@ -83,6 +84,7 @@ This skill uses the `mcp_chrome_devtools_win_evaluate_script()` tool to run Java
 ### Step 2: Collect User Inputs
 
 Before starting extraction, gather:
+
 1. **Target chat name** - person name or group chat name
 2. **Time period** - normalize user intent into one of these values:
    - `currentlyLoaded` - only currently visible messages
@@ -102,6 +104,7 @@ Before starting extraction, gather:
 **Note:** Do NOT include this in subsequent extraction requests for the same chat within the same page session, as the injected functions persist in the window scope.
 
 **Parameter format:** Copy the entire file contents and pass them exactly as:
+
 ```javascript
 (function injectGlobals(){
     // [exact file contents here - unmodified]
@@ -117,6 +120,7 @@ Before starting extraction, gather:
 **Critical:** You MUST modify the `'NEED_TO_REPLACE_THIS_VALUE_WITH_DESIRED_TIME_PERIOD'` placeholder with the actual time period value (e.g., `'last24hours'`).
 
 **extractStart.js reference (for modification):**
+
 ```javascript
 (function extractStart() {
     const result = window.__extractStart('NEED_TO_REPLACE_THIS_VALUE_WITH_DESIRED_TIME_PERIOD');
@@ -125,6 +129,7 @@ Before starting extraction, gather:
 ```
 
 **Example:** If user wants messages from the past 24 hours, you would pass:
+
 ```javascript
 (function extractStart() {
     const result = window.__extractStart('last24hours');
@@ -143,6 +148,7 @@ Before starting extraction, gather:
 **Action:** Call `mcp_chrome_devtools_win_evaluate_script()` tool repeatedly with the exact contents of `scripts/extractStatus.js` until `status === 'done'`.
 
 **extractStatus.js reference:**
+
 ```javascript
 (function extractStatus() {
     const result = window.__extractStatus();
@@ -150,7 +156,8 @@ Before starting extraction, gather:
 })
 ```
 
-**Polling strategy:** 
+**Polling strategy:**
+
 - Call extractStatus
 - If `status === 'running'`, wait a reasonable interval (1-2 seconds) and poll again
 - If `status === 'done'`, proceed to Step 6
@@ -163,6 +170,7 @@ Before starting extraction, gather:
 **Action:** Call `mcp_chrome_devtools_win_evaluate_script()` tool with the exact contents of `scripts/extractResult.js`.
 
 **extractResult.js reference:**
+
 ```javascript
 (function extractResult() {
     return window.__extractResult; 
@@ -170,6 +178,7 @@ Before starting extraction, gather:
 ```
 
 **Response:** Returns an array of extracted message objects with structure:
+
 ```json
 [
   {
@@ -186,6 +195,7 @@ Before starting extraction, gather:
 ## 6) mcp_chrome_devtools_win_evaluate_script() Tool
 
 **Tool Name (Platform-Specific):**
+
 - **Linux/macOS:** `mcp_chrome_devtools_local_evaluate_script()`
 - **Windows:** `mcp_chrome_devtools_win_evaluate_script()`
 
@@ -201,7 +211,8 @@ All parameters passed to the `mcp_chrome_devtools_win_evaluate_script()` tool mu
 })
 ```
 
-**Important:** 
+**Important:**
+
 - NO curly braces after the closing parenthesis
 - NO semicolon after the closing parenthesis
 - Function name matches the source file (injectGlobals, extractStart, extractStatus, extractResult)
@@ -213,24 +224,28 @@ Example workflow:
 1. User: "Extract messages from Chat A for the past 24 hours"
    - Call Step 3 (injectGlobals) once
    - Call Step 4 (extractStart with 'last24hours')
-  - Poll with Step 5 until done
-   - Call Step 6 (extractResult)
 
-2. User: "Now show me messages from Chat A for the past month"
+- Poll with Step 5 until done
+- Call Step 6 (extractResult)
+
+1. User: "Now show me messages from Chat A for the past month"
    - Skip Step 3 (variables already injected)
    - Call Step 4 (extractStart with 'last30days') - note the new time period parameter
-  - Poll with Step 5 until done
-   - Call Step 6 (extractResult)
 
-3. User: "Extract from Chat B for the past week"
+- Poll with Step 5 until done
+- Call Step 6 (extractResult)
+
+1. User: "Extract from Chat B for the past week"
    - Call Step 3 (injectGlobals) again - new chat requires re-injection
    - Call Step 4 (extractStart with 'last7days')
-  - Poll with Step 5 until done
-   - Call Step 6 (extractResult)
+
+- Poll with Step 5 until done
+- Call Step 6 (extractResult)
 
 ## 8) Error Recovery
 
 If a subsequent step returns an error indicating undefined functions (e.g., `window.__extractStart is not defined`):
+
 - Re-run Step 3 (injectGlobals) to ensure all functions are properly declared
 - Then resume with Step 4
 
@@ -238,11 +253,13 @@ If a subsequent step returns an error indicating undefined functions (e.g., `win
 
 `window.__extractResult()` returns the extracted message array only when status is done.
 Always check `window.__extractState.status` first:
+
 - If `done`: safe to call `window.__extractResult()` for results
 - If `error`: check `window.__extractState.error` for failure details
 - If `running`: extraction still in progress, continue polling
 
 Expected item shape (from extractor):
+
 - `id`
 - `date`
 - `timestamp`
@@ -254,6 +271,7 @@ Expected item shape (from extractor):
   - `hasImages`, `hasVideos`, `hasGif`
 
 When summarizing or answering follow-up questions:
+
 - clearly state the selected chat and time range used
 - cite uncertainty if extraction appears incomplete
 - avoid inferring messages outside extracted data
@@ -261,11 +279,13 @@ When summarizing or answering follow-up questions:
 ## 10) Safety and Scope Rules
 
 Always:
+
 - get explicit user confirmation for target chat and date window
 - keep extraction limited to user-requested chat/time period
 - pause for user confirmation at login and browser-alignment gates
 
 Never:
+
 - extract from other chats without user approval
 - proceed when browser context is ambiguous
 - claim completion before `window.__extractStatus()` reports completion
@@ -273,11 +293,13 @@ Never:
 ## 11) Reliability Notes
 
 - This non-blocking pattern avoids MCP timeouts by separating:
-  * MCP layer: instant wrapper injection and status polling (milliseconds)
-  * Page layer: background extraction promise (can run minutes)
+  - MCP layer: instant wrapper injection and status polling (milliseconds)
+  - Page layer: background extraction promise (can run minutes)
 - Always verify `window.extractTeamsChat` exists before injection:
+
   ```javascript
   mcp_chrome_devtools_win_evaluate_script()({function: "() => !!window.extractTeamsChat"})
   ```
+
 - If `extractTeamsChat` becomes undefined (due to page reload/navigation), re-inject the wrapper and restart
 - For very long extractions (>15 mins), consider chunking into weekly ranges and merging results

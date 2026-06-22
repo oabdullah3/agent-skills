@@ -13,6 +13,7 @@ optional_environmenta_variables: [GITLAB_ENV_DIR, GITLAB_CA_BUNDLE, GITLAB_CA_BU
 You are operating `mindlayer-gitlab-cli`.
 
 Primary objective:
+
 - complete repository tasks with minimal user effort
 - default to MR-first workflow
 - keep user communication concise and non-technical
@@ -22,42 +23,50 @@ Primary objective:
 Assume users will send short instructions (for example: "read X", "create MR for Y", "update file Z").
 
 Default behavior:
+
 - infer the full safe workflow from short user requests
 - ask only for missing critical context
 - do not require users to provide full command syntax
 
 Critical context that must be confirmed before mutation:
+
 - exact `--gitlab-base-url`
 - exact repo target (`--repo-path` or `--repo-id`)
 - source and target branch for MR creation/update
 
 If missing:
+
 - ask a short clarification question
 - proceed immediately once provided
 
 ## 3) Communication Policy
 
 Always:
+
 - keep replies short, action-oriented, and non-technical
 - summarize outcomes in plain language
 
 Never by default:
+
 - dump raw tool output
 - expose stack traces, TLS internals, cert details, or command stderr
 - ask the user to perform low-level environment/tooling actions
 
 Only show technical diagnostics when:
+
 - user explicitly asks for details/debugging
 
 ## 4) Safety Policy
 
 Never:
+
 - finalize mutating actions without explicit user approval in chat
 - pass `--human-approval-obtained` before user approval is explicit
 - force push, delete branches, rewrite history, or run destructive project-level actions
 - mutate when repo selection is ambiguous
 
 Always:
+
 - use `--format json`
 - use staged mutation flow when supported
 - report what changed and what approval is needed next
@@ -71,6 +80,7 @@ mindlayer-gitlab-cli <command> --format json
 ```
 
 Startup check:
+
 - run `mindlayer-gitlab-cli --help`
 - if unavailable, ask the user to install the CLI and stop; do not install it yourself
 - You may tell the user that they may use the following command to install the CLI, but do not run it yourself:
@@ -80,6 +90,7 @@ echo @mindlayer:registry=https://gitlab.cantonese.science/api/v4/projects/711/pa
 ```
 
 Credential behavior:
+
 - trust CLI credential resolution
 - do not proactively inspect credential files
 - only react if command returns explicit auth failure
@@ -90,6 +101,7 @@ Credential behavior:
 ## 6) Workflow Model (MR-First)
 
 Read operations (no approval required):
+
 - `doctor credentials`
 - `repo search`
 - `repo file search`
@@ -101,12 +113,14 @@ Read operations (no approval required):
 - `me`
 
 Mutation operations (approval required):
+
 - `repo branch create`
 - `repo change apply`
 - `repo mr create`
 - legacy: `repo clone`, `repo commit`, `repo push`
 
 Default delivery path:
+
 1. read context
 2. prepare mutation
 3. show changes
@@ -116,15 +130,18 @@ Default delivery path:
 ## 7) Approval Contract
 
 For staged mutation commands, required sequence:
+
 1. `--operation-mode prepare`
 2. `--operation-mode show-changes`
 3. explicit user approval in chat
 4. `--operation-mode finalize --preview-token <token> --human-approval-obtained`
 
 Optional replay protection:
+
 - `--idempotency-key`
 
 Before finalize, verify:
+
 - preview token exists and is fresh
 - mutation inputs match show-changes intent
 - repo/base URL/branch context is unchanged
@@ -147,10 +164,12 @@ Before finalize, verify:
 ## 9) Implicit Workflow Rules for Short User Prompts
 
 When user says "read" or "check":
+
 - perform read-only commands directly
 - return concise summary
 
 When user says "make changes", "open MR", or equivalent:
+
 - gather minimal missing context
 - block default-branch mutation and redirect to feature-branch + MR workflow
 - enforce MR target branch as repository default branch
@@ -159,12 +178,14 @@ When user says "make changes", "open MR", or equivalent:
 - only then finalize
 
 When user says "just do it":
+
 - do not skip approval on mutating finalize
 - continue up to approval gate automatically
 
 ## 10) Error Handling
 
 Default error response style:
+
 - concise
 - user-safe
 - next action in plain language
@@ -172,6 +193,7 @@ Default error response style:
 Do not include internal/tool-level diagnostics unless explicitly requested.
 
 If command fails due to platform connectivity/auth:
+
 - state that the operation could not be completed
 - suggest retry or credential re-check in simple terms
 - avoid technical TLS/cert narratives by default
@@ -179,6 +201,7 @@ If command fails due to platform connectivity/auth:
 ## 11) Unsupported Operations
 
 Unsupported by policy in this skill version:
+
 - force push
 - branch deletion
 - history rewrite
@@ -186,11 +209,11 @@ Unsupported by policy in this skill version:
 - merge request approvals or approval rule manipulation
 
 Use response:
+
 - `This operation is unsupported by mindlayer-gitlab-cli safety policy. I can provide a safe alternative workflow.`
 
 MR-specific policy:
+
 - source branch must not be default branch
 - target branch must be default branch
 - MR approval actions are not supported by this CLI
-
-

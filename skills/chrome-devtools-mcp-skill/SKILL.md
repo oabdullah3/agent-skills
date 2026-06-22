@@ -1,7 +1,7 @@
 ---
 name: chrome-devtools-mcp-skill
 description: Comprehensive guide for connecting Hermes Agent to Chrome DevTools via MCP server. Enables browser automation, inspection, and programmatic control with full security confirmations and platform-specific instructions.
-version: 1.1.0
+version: 1.2.0
 author: Hermes Agent
 license: MIT
 ---
@@ -110,6 +110,7 @@ hermes mcp add chrome-devtools-mac \
 ```
 
 **Flags Explained**:
+
 - `--autoConnect`: Attempts automatic connection to the first available browser instance
 - `--no-usage-statistics`: Disables telemetry (recommended for privacy-conscious setups)
 
@@ -149,6 +150,7 @@ Once the MCP server is running and remote debugging is enabled, the agent will:
 #### Discovery Tools
 
 The agent uses tools like:
+
 - `list_pages` / `list_targets`: Returns open tabs with titles, URLs, and target IDs
 - `select_page(pageId)`: Focuses the agent on a specific tab
 
@@ -157,6 +159,7 @@ The agent uses tools like:
 **Observation**: When multiple tabs are open, explicit selection by URL or title is more reliable than ID alone.
 
 **Recommended Pattern**:
+
 ```
 1. pages = mcp_chrome_devtools_win_list_pages()
    # Returns: [{id: 1, title: "Tab 1", url: "..."}, {id: 7, title: "Overview", url: "https://..."}, ...]
@@ -515,6 +518,10 @@ mcp_chrome_devtools_local_set_cookies(targetId, [{name: "session_id", value: "ab
 
 ---
 
+## JavaScript injection via `evaluate_script`
+
+Refer to docs/javascript-injection-guide.md for more details.
+
 ## Safeguards & Confirmation Flow
 
 ### State-Modifying Actions
@@ -522,6 +529,7 @@ mcp_chrome_devtools_local_set_cookies(targetId, [{name: "session_id", value: "ab
 The agent will display a confirmation prompt before executing any action that modifies browser or page state:
 
 **Actions requiring confirmation**:
+
 - Navigation to a new URL
 - Form submission or data entry
 - Cookie modification
@@ -530,6 +538,7 @@ The agent will display a confirmation prompt before executing any action that mo
 - Running JavaScript that modifies DOM
 
 **Confirmation format**:
+
 ```
 The agent will show:
 1. The intended action in plain language
@@ -542,6 +551,7 @@ If you refuse, the agent will explain why it needed the action and ask for alter
 ### Sensitive Operations
 
 **The agent will refuse or require explicit opt-in for**:
+
 - Reading password fields or sensitive input
 - Programmatic credential entry (e.g., auto-filling login forms)
 - Accessing personal data fields (name, email, phone)
@@ -558,6 +568,7 @@ You can override these safeguards by explicitly instructing the agent and confir
 **Symptoms**: Agent reports "chrome-devtools-mcp server not found" after discovery attempts.
 
 **Solution**:
+
 1. Verify the server name you provided matches what you used during `hermes mcp add`
 2. If using Windows/WSL2, ensure the server was added as `chrome-devtools-win` (or your chosen name)
 3. Restart the Hermes agent: Ask it to "restart and rediscover MCP servers"
@@ -568,8 +579,9 @@ You can override these safeguards by explicitly instructing the agent and confir
 **Symptoms**: "npx not found" or "npm is not installed" error during server setup.
 
 **Solution**:
+
 - Install Node.js and npm
-  - **Windows**: Download from https://nodejs.org/ or use `choco install nodejs` (if using Chocolatey)
+  - **Windows**: Download from <https://nodejs.org/> or use `choco install nodejs` (if using Chocolatey)
   - **Linux (recommended, no elevated shell command in skill)**: install Node with `nvm` so npm/npx are available in user space
   - **Linux (system package manager)**: install `nodejs` and `npm` with your distro package manager using your organization's approved admin process
   - **macOS**: `brew install node` (if using Homebrew)
@@ -581,6 +593,7 @@ You can override these safeguards by explicitly instructing the agent and confir
 **Symptoms**: Agent lists pages but fails to attach or interact with them.
 
 **Solution**:
+
 1. Verify remote debugging is enabled: Navigate to `chrome://inspect` and confirm your target window appears
 2. Ensure only the target window is open (close other profiles/windows)
 3. For WSL2: Verify the server is running on the Windows host and has access to the Windows Chrome instance
@@ -591,9 +604,11 @@ You can override these safeguards by explicitly instructing the agent and confir
 **Symptoms**: Screenshot saved to `C:\tmp\page.png` (Windows path) but you can't access from WSL.
 
 **Solution** (WSL2 users):
+
 - Windows paths map to WSL2 as `/mnt/c/`
 - Convert: `C:\tmp\page.png` → `/mnt/c/tmp/page.png`
 - Example:
+
   ```bash
   cat /mnt/c/tmp/page.png  # View the file
   cp /mnt/c/tmp/page.png ~/page.png  # Copy to WSL home
@@ -604,15 +619,17 @@ You can override these safeguards by explicitly instructing the agent and confir
 **Symptoms**: Agent asks "which tab?" and displays multiple tabs; you're unsure which to pick.
 
 **Solution**:
+
 1. Use the pattern from Phase 4 to select by URL or title match
 2. Or, temporarily close all other tabs except your target, then reconnect
-3. Provide clear instructions: "Select the tab with title matching 'Confluence Overview'" or "Select the tab at URL https://example.com"
+3. Provide clear instructions: "Select the tab with title matching 'Confluence Overview'" or "Select the tab at URL <https://example.com>"
 
 ### Issue: Sensitive Page Elements Not Responding to Clicks
 
 **Symptoms**: `mcp_chrome_devtools_win_click(selector)` fails or clicks the wrong element.
 
 **Solution**:
+
 1. Use `take_snapshot(verbose=true)` to view the accessibility tree and locate precise UIDs
 2. Use the UID directly: `mcp_chrome_devtools_win_click(uid="uid_456")` instead of CSS selector
 3. Try alternative selectors: `button:nth-child(2)`, `[data-testid='submit-btn']`, etc.
@@ -622,6 +639,7 @@ You can override these safeguards by explicitly instructing the agent and confir
 **Symptoms**: `evaluate_script(targetId, expression)` returns `undefined` or unexpected values.
 
 **Solution**:
+
 1. Verify the expression is valid JavaScript: `document.title`, `document.querySelectorAll('a').length`
 2. Check if the page has fully loaded before evaluating
 3. Use JSON.stringify() to return complex objects: `JSON.stringify({key: value})`
@@ -632,6 +650,7 @@ You can override these safeguards by explicitly instructing the agent and confir
 **Symptoms**: Trace file not found at specified path, or error saving.
 
 **Solution**:
+
 - Ensure the target directory exists and is writable
   - **Linux/macOS**: `mkdir -p /tmp && touch /tmp/test.txt` to verify write access
   - **Windows**: Use a writable directory like `C:\Users\YourUser\Downloads\`
@@ -643,6 +662,7 @@ You can override these safeguards by explicitly instructing the agent and confir
 **Symptoms**: "I cannot perform that operation without explicit confirmation" when trying to modify credentials or sensitive data.
 
 **Solution**:
+
 1. This is intentional safeguard behavior—it's protecting sensitive operations
 2. You can override by explicitly requesting: "I understand the risks. Please [operation]. I consent."
 3. Use this sparingly and only for operations you fully understand
@@ -655,6 +675,7 @@ You can override these safeguards by explicitly instructing the agent and confir
 ### Discovery & Setup (All Platforms)
 
 **Check for existing server**:
+
 ```bash
 # The agent will do this automatically with permission
 ps aux | grep chrome-devtools-mcp
@@ -663,6 +684,7 @@ ps aux | grep chrome-devtools-mcp
 ### Installation Commands
 
 **WSL2 (Windows Host)**:
+
 ```bash
 hermes mcp add chrome-devtools-win \
   --command cmd.exe \
@@ -670,6 +692,7 @@ hermes mcp add chrome-devtools-win \
 ```
 
 **Linux**:
+
 ```bash
 hermes mcp add chrome-devtools-local \
   --command npx \
@@ -677,6 +700,7 @@ hermes mcp add chrome-devtools-local \
 ```
 
 **macOS**:
+
 ```bash
 hermes mcp add chrome-devtools-mac \
   --command npx \
@@ -686,114 +710,135 @@ hermes mcp add chrome-devtools-mac \
 ### Common Tool Invocations
 
 **List pages (Windows)**:
+
 ```
 mcp_chrome_devtools_win_list_pages()
 ```
 
 **List pages (Linux/macOS)**:
+
 ```
 mcp_chrome_devtools_local_list_pages()
 ```
 
 **Select page (Windows)**:
+
 ```
 mcp_chrome_devtools_win_select_page(pageId=7)
 ```
 
 **Select page (Linux/macOS)**:
+
 ```
 mcp_chrome_devtools_local_select_page(pageId=7)
 ```
 
 **Take screenshot (Windows)**:
+
 ```
 mcp_chrome_devtools_win_take_screenshot(filePath="/tmp/page.png", fullPage=true)
 ```
 
 **Take screenshot (Linux/macOS)**:
+
 ```
 mcp_chrome_devtools_local_take_screenshot(filePath="/tmp/page.png", fullPage=true)
 ```
 
 **Take accessibility snapshot (Windows)**:
+
 ```
 mcp_chrome_devtools_win_take_snapshot(verbose=true)
 ```
 
 **Take accessibility snapshot (Linux/macOS)**:
+
 ```
 mcp_chrome_devtools_local_take_snapshot(verbose=true)
 ```
 
 **Navigate to URL (Windows)**:
+
 ```
 mcp_chrome_devtools_win_navigate(targetId, "https://example.com")
 ```
 
 **Navigate to URL (Linux/macOS)**:
+
 ```
 mcp_chrome_devtools_local_navigate(targetId, "https://example.com")
 ```
 
 **Click element (Windows)**:
+
 ```
 mcp_chrome_devtools_win_click(targetId, "button.submit")
 mcp_chrome_devtools_win_click(targetId, uid="uid_456")
 ```
 
 **Click element (Linux/macOS)**:
+
 ```
 mcp_chrome_devtools_local_click(targetId, "button.submit")
 mcp_chrome_devtools_local_click(targetId, uid="uid_456")
 ```
 
 **Type text (Windows)**:
+
 ```
 mcp_chrome_devtools_win_type(targetId, "input#search", "search term")
 mcp_chrome_devtools_win_type(targetId, uid="uid_789", "input text")
 ```
 
 **Type text (Linux/macOS)**:
+
 ```
 mcp_chrome_devtools_local_type(targetId, "input#search", "search term")
 mcp_chrome_devtools_local_type(targetId, uid="uid_789", "input text")
 ```
 
 **Evaluate JavaScript (Windows)**:
+
 ```
 mcp_chrome_devtools_win_evaluate_script(targetId, "document.title")
 mcp_chrome_devtools_win_evaluate_script(targetId, "JSON.stringify({count: document.querySelectorAll('a').length})")
 ```
 
 **Evaluate JavaScript (Linux/macOS)**:
+
 ```
 mcp_chrome_devtools_local_evaluate_script(targetId, "document.title")
 mcp_chrome_devtools_local_evaluate_script(targetId, "JSON.stringify({count: document.querySelectorAll('a').length})")
 ```
 
 **Get cookies (Windows)**:
+
 ```
 mcp_chrome_devtools_win_get_cookies(targetId)
 ```
 
 **Get cookies (Linux/macOS)**:
+
 ```
 mcp_chrome_devtools_local_get_cookies(targetId)
 ```
 
 **Enable & read console (Windows)**:
+
 ```
 mcp_chrome_devtools_win_console_enable(targetId)
 mcp_chrome_devtools_win_console_read(targetId)
 ```
 
 **Enable & read console (Linux/macOS)**:
+
 ```
 mcp_chrome_devtools_local_console_enable(targetId)
 mcp_chrome_devtools_local_console_read(targetId)
 ```
 
 **Start performance trace (Windows)**:
+
 ```
 mcp_chrome_devtools_win_performance_start_trace(targetId)
 # ... perform actions ...
@@ -801,6 +846,7 @@ mcp_chrome_devtools_win_performance_stop_trace(targetId, filePath="/tmp/trace.js
 ```
 
 **Start performance trace (Linux/macOS)**:
+
 ```
 mcp_chrome_devtools_local_performance_start_trace(targetId)
 # ... perform actions ...
@@ -819,6 +865,7 @@ mcp_chrome_devtools_local_performance_stop_trace(targetId, filePath="/tmp/trace.
 ### Getting Help
 
 If you encounter issues:
+
 1. Provide the agent with the exact error message and operation that failed
 2. Share the discovery output so the agent can diagnose server configuration
 3. Check that your environment meets the prerequisites (Node.js, browser, remote debugging enabled)
@@ -827,6 +874,7 @@ If you encounter issues:
 ### Trial Run Insights
 
 From successful trial runs, we've observed:
+
 - **Multi-tab scenarios**: Selecting by URL or title is more reliable than ID alone when many tabs are open
 - **Path handling in WSL2**: Windows paths (C:\...) need conversion to `/mnt/c/...` for WSL access
 - **Snapshot usefulness**: Verbose accessibility snapshots are invaluable for locating elements by UID
